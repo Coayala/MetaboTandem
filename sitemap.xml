@@ -28,6 +28,9 @@
     <loc>https://coayala.github.io/MetaboTandem/reference/annotate_CAMERA.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/annotate_SIRIUS.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/apply_alignment.html</loc>
   </url>
   <url>
@@ -40,6 +43,12 @@
     <loc>https://coayala.github.io/MetaboTandem/reference/apply_peak_picking.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/apply_peak_refinement.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/autotunerUI.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/calculate_bpc.html</loc>
   </url>
   <url>
@@ -47,6 +56,9 @@
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/centroid_check.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/colorPickerUI.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/create_col_vector.html</loc>
@@ -79,6 +91,9 @@
     <loc>https://coayala.github.io/MetaboTandem/reference/extract_MS2_consensus.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/extract_autotuner.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/extract_feature_definition.html</loc>
   </url>
   <url>
@@ -91,10 +106,16 @@
     <loc>https://coayala.github.io/MetaboTandem/reference/extract_spectra_table.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/fix_entries.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/gapFillingUI.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/global.norm.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/home_ui.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/identify_peak.html</loc>
@@ -119,6 +140,9 @@
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/median.norm.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/merge_SIRIUS_files.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/metadataServer.html</loc>
@@ -148,6 +172,12 @@
     <loc>https://coayala.github.io/MetaboTandem/reference/normalize_by_all.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/old_MetaboTandemApp.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/parse_ms2_for_SIRIUS.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/peakPickingServer.html</loc>
   </url>
   <url>
@@ -166,16 +196,31 @@
     <loc>https://coayala.github.io/MetaboTandem/reference/rp_data.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/separate_MS2.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/siriusAnnotationServer.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/siriusAnnotationUI.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/spectraServer.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/spectraUI.html</loc>
   </url>
   <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/start_autotuner.html</loc>
+  </url>
+  <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/statsSetupUI.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/test_peak_picking.html</loc>
+  </url>
+  <url>
+    <loc>https://coayala.github.io/MetaboTandem/reference/ui_main.html</loc>
   </url>
   <url>
     <loc>https://coayala.github.io/MetaboTandem/reference/vsn.norm.html</loc>
