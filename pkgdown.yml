@@ -2,7 +2,7 @@ pandoc: 2.19.2
 pkgdown: 2.0.7
 pkgdown_sha: ~
 articles: {}
-last_built: 2024-01-22T19:11Z
+last_built: 2024-01-22T22:39Z
 urls:
   reference: https://coayala.github.io/MetaboTandem/reference
   article: https://coayala.github.io/MetaboTandem/articles
