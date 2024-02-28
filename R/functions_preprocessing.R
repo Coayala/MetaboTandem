@@ -3,7 +3,7 @@
 #' This function is intended to load the spectra data in mzML or mzXML format
 #' using the xcms package.
 #'
-#'
+library(BiocParallel)
 #' @param datadir Path to the directory with the data.
 #' @param metadata Sample information data.frame.
 #' @param format Format of the data.
@@ -123,6 +123,8 @@ test_peak_picking <- function(data,
 #'     they contain at least `k` peaks with intensity >= `I`.
 #'
 #' @export
+BPPARAM <- SnowParam(workers = 4, type ="SOCK")  # for parallel processing
+
 apply_peak_picking <- function(data,
                                method,
                                ppm = 25,
@@ -135,7 +137,8 @@ apply_peak_picking <- function(data,
                                fwhm = 30,
                                sigma = 12.72,
                                max = 10,
-                               steps = 2){
+                               steps = 2,
+                               BPPARAM = SnowParam(workers = 4, type ="SOCK")){
   # Test peak picking parameters
 
   if(method == 'cw'){
@@ -172,10 +175,24 @@ apply_peak_picking <- function(data,
 
   print('Starting peak picking')
 
-  data <- xcms::findChromPeaks(data, param = sel_param)
+  data <- xcms::findChromPeaks(data, param = sel_param, BPPARAM = BPPARAM)
 
   return(data)
 }
+
+
+
+#
+# print(benchmark_result)
+
+# # Assuming BPPARAM is already defined for parallel processing
+# system.time({
+#   parallel_result <- apply_peak_picking(data, method = "cw", BPPARAM = BPPARAM)
+# })
+# print(system.time(parallel_result))
+
+
+
 
 #' Apply Peak Refinement
 #'

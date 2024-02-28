@@ -33,7 +33,7 @@ ui_main <- function(){
                                           size = 'sm'))
 
         ),
-        
+
         id='sidebarID',
 
         # Left side items to select the different steps of the pipeline
@@ -110,7 +110,7 @@ ui_main <- function(){
         ## Pre-processing tabs
         tabItem(tabName = 'load_data',
                 h1('Load your data'),
-                actionButton("Next1", "Next",icon =icon ('arrow-right')),
+               # actionButton("Next1", "Next",icon =icon ('arrow-right')),
                 load_dataUI('load_data')),
 
         tabItem(tabName = 'p_pick',
