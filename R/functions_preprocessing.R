@@ -1,19 +1,19 @@
 #' Load Spectra data
-#'
 #' This function is intended to load the spectra data in mzML or mzXML format
 #' using the xcms package.
-#'
-#'
-#' @param datadir Path to the directory with the data.
-#' @param metadata Sample information data.frame.
-#' @param format Format of the data.
-#'
+   library(BiocParallel)
+#' @title Load Spectra Data
+#' @description Loads spectra data in mzML or mzXML format using the xcms package.
+#' @param datadir Character. Path to the directory containing the data files.
+#' @param metadata Data frame. Contains sample information. Each row represents a sample and columns contain metadata information.
+#' @param format Character. Specifies the format of the data files. Default is 'mzML'. Supported formats include 'mzML' and 'mzXML'.
+#' @param mode Character. Specifies the mode of operation. Default is 'onDisk'. Other modes depend on xcms package capabilities.
+#' @return An object containing the loaded spectra data.
 #' @export
 load_spectra_data <- function(datadir,
                               metadata,
                               format = 'mzML',
                               mode = 'onDisk'){
-
   # Get list of mass spectra files
   ms_files <- list.files(datadir, full.names = TRUE,
                          pattern = paste0('*.', format))
@@ -23,26 +23,23 @@ load_spectra_data <- function(datadir,
                               pdata = new('NAnnotatedDataFrame', metadata),
                               mode = mode,
                               verbose = TRUE)
-
   return(data)
 }
 
 
 #' Check centroided
-#'
 #' This function checks if data is centroided
-#'
-#'
-#' @param data An [MSnExp-class] object.
-#' @param transform Transform the data into centroid mode
 #' @importFrom MSnbase pickPeaks
 #' @importFrom MSnbase fData
 #' @importFrom MSnbase smooth
-#'
+#' @title Check Centroided
+#' @description Checks if the data is in centroid mode.
+#' @param data MSnExp-class object. Represents mass spectrometry data.
+#' @param transform Logical. If TRUE, transforms the data into centroid mode using available transformation functions. Default is TRUE.
+#' @return MSnExp-class object with data either confirmed as centroid or transformed into centroid mode.
 #' @export
 centroid_check <- function(data,
                            transform = TRUE){
-
   is.centroided <- unique(MSnbase::fData(data)$centroided)
   if(is.centroided){
     print('Data is centroided')
@@ -60,23 +57,20 @@ centroid_check <- function(data,
 }
 
 #' Test peak picking
-#'
 #' Function to test peak picking parameters on a data subset
-#'
-#'
+#' @title Test Peak Picking
+#' @description Tests peak picking parameters on a subset of the data.
+#' @return Modified MSnExp-class object with tested peak picking parameters.
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param mz.range *mz* range (`numeric(2)`) to test peak picking parameters.
 #' @param rt.range *rt* range (`numeric(2)`) to test peak picking parameters.
 #' @param p.width  Minium and maximum allowed peak width
 #' @param snt Minimum signal-to-noise threshold allowed
 #' @param noise Noise threshold
-#' @param prefilter Prefilter step cutoff (`c(k, I)`). Mass will be retained if
-#'     they contain at least `k` peaks with intensity >= `I`
-#'
+#' @param prefilter Prefilter step cutoff (`c(k, I)`). Mass will be retained if they contain at least `k` peaks with intensity >= `I`
 #' @importFrom MSnbase filterRt
 #' @importFrom MSnbase filterMz
 #' @importFrom MSnbase pData<-
-#'
 #' @export
 test_peak_picking <- function(data,
                               mz_range,
@@ -86,16 +80,13 @@ test_peak_picking <- function(data,
                               noise,
                               prefilter = c(1, 100)){
   # Test peak picking parameters
-
   print('Starting setting up parameters')
-
   cwp <- xcms::CentWaveParam(
     peakwidth = p_width,
     snthresh = snt,
     noise = noise,
     prefilter = prefilter
   )
-
   data %>%
     MSnbase::filterRt(rt = rt_range) %>%
     MSnbase::filterMz(mz = mz_range) %>%
@@ -104,25 +95,25 @@ test_peak_picking <- function(data,
     xcms::plot(., col = "indianred2",
          ylab="Intensity", xlab="Retention Time (sec)",
          font.lab=1, cex.lab=1, cex.axis=1, font.main=1, cex.main=1)
-
   print('Graph done')
-
-
 }
 
 #' Apply Peak Picking
-#'
 #' Function to apply peak picking parameters on a data subset
-#'
-#'
+#' @title Apply Peak Picking
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param p_width  Minium and maximum allowed peak width.
 #' @param snt Minimum signal-to-noise threshold allowed.
 #' @param noise Noise threshold.
-#' @param prefilter Prefilter step cutoff (`c(k, I)`). Mass will be retained if
-#'     they contain at least `k` peaks with intensity >= `I`.
-#'
+#' @param prefilter Prefilter step cutoff (`c(k, I)`). Mass will be retained if they contain at least `k` peaks with intensity >= `I`.
+#' @description Applies peak picking parameters to the data.
+#' @param method Character. Specifies the peak picking method. Options include 'cw' for CentWave, 'mq' for Massifquant, and 'mf' for MatchedFilter.
+#' @param ppm Numeric. Specifies the parts per million for m/z tolerance. Additional parameters include p_width, snt, noise, prefilter, mz_diff, bin, fwhm, sigma, max, and steps, each with specific roles in peak picking.
+#' @param BPPARAM BiocParallelParam-class object. Specifies the parallel processing parameters. Default is SnowParam with 4 workers.
+#' @return MSnExp-class object after applying peak picking.
 #' @export
+BPPARAM <- SnowParam(workers = 4, type ="SOCK")  # for parallel processing
+
 apply_peak_picking <- function(data,
                                method,
                                ppm = 25,
@@ -135,7 +126,8 @@ apply_peak_picking <- function(data,
                                fwhm = 30,
                                sigma = 12.72,
                                max = 10,
-                               steps = 2){
+                               steps = 2,
+                               BPPARAM = SnowParam(workers = 4, type ="SOCK")){
   # Test peak picking parameters
 
   if(method == 'cw'){
@@ -172,19 +164,22 @@ apply_peak_picking <- function(data,
 
   print('Starting peak picking')
 
-  data <- xcms::findChromPeaks(data, param = sel_param)
+  data <- xcms::findChromPeaks(data, param = sel_param, BPPARAM = BPPARAM)
 
   return(data)
 }
 
 #' Apply Peak Refinement
-#'
 #' Function to apply peak picking parameters on a data subset
-#'
-#'
+#' @title Apply Peak Refinement
+#' @description Function to apply peak picking parameters on a data subset.
 #' @param data An [MSnExp-class] object in *centroid* mode.
-#' @param expand_rt
-#'
+#' @param metadata Sample information data.frame.
+#' @param expand_rt Numeric. Specifies the range to expand retention time during peak merging. Default is 2.
+#' @param expand_mz Numeric. Specifies the range to expand m/z during peak merging. Default is 0.
+#' @param ppm Numeric. Parts per million tolerance for peak merging.
+#' @param min_prop Numeric. Minimum proportion of overlapping intensity required to merge peaks. Default is 0.75.
+#' @return MSnExp-class object after refining peaks by merging neighboring peaks.
 #' @export
 apply_peak_refinement <- function(data,
                                   metadata,
@@ -205,11 +200,8 @@ apply_peak_refinement <- function(data,
 }
 
 
-#' Apply Peak alignment
-#'
-#' Function to apply peak picking parameters on a data subset
-#'
-#'
+#' @title Apply Peak alignment
+#' @description Function to apply peak picking parameters on a data subset
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param metadata Sample information data.frame.
 #' @param min_frac Minimum fraction of samples within a sample group a peak must
@@ -220,7 +212,8 @@ apply_peak_refinement <- function(data,
 #' @param bw = Bandwidth of the smoothing kernel
 #' @param group_by Vector with the same length of the samples with grouping
 #'     information
-#'
+#' @param plot Logical. If TRUE, plots the adjusted retention time. Default is FALSE.
+#' @return MSnExp-class object after alignment.
 #' @export
 apply_alignment <- function(data,
                             metadata,
@@ -276,8 +269,8 @@ apply_alignment <- function(data,
 #' Apply Peak Correspondence
 #'
 #' Function to apply peak picking parameters on a data subset
-#'
-#'
+#' @title Apply Peak Correspondence
+#' @description Function to group peaks across samples based on specified parameters.
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param metadata Sample information data.frame.
 #' @param min_frac Minimum fraction of samples within a sample group a peak must
@@ -288,7 +281,7 @@ apply_alignment <- function(data,
 #' @param bw = Bandwidth of the smoothing kernel
 #' @param group_by Vector with the same length of the samples with grouping
 #'     information
-#'
+#' @return MSnExp-class object after grouping peaks.
 #' @export
 apply_correspondence <- function(data,
                                  metadata,
@@ -317,11 +310,11 @@ apply_correspondence <- function(data,
 #' Apply Gap Filling
 #'
 #' Function to apply peak picking parameters on a data subset
-#'
-#'
+#' @title Apply Gap Filling
+#' @description Function to fill in missing peaks in the data set.
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @import ggplot2
-#'
+#' @return MSnExp-class object after gap filling.
 #' @export
 apply_gap_filling <- function(data){
 
