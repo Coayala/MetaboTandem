@@ -4,7 +4,13 @@
 \alias{mod_identify_all}
 \title{Modified - Identify metabolites using multiple databases}
 \usage{
-mod_identify_all(ms1.data, ms2.data, db_dir, parameter.list)
+mod_identify_all(
+  ms1.data,
+  ms2.data,
+  db_dir,
+  parameter.list,
+  process_ms2 = FALSE
+)
 }
 \arguments{
 \item{ms1.data}{A \link{data.frame} containing the columns 'FeatureID', 'mzmed' and 'rtmed'}
