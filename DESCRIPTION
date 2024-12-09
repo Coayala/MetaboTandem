@@ -1,0 +1,24 @@
+Package: MetaboTandem
+Title: Analysis and Visualization of LC-MS/MS Data
+Version: 0.0.0.9000
+Authors@R: 
+    person("Christian", "Ayala-Ortiz", , "cayalaortiz@arizona.edu", role = c("aut", "cre"))
+Description: MetaboTandem is an R package and shiny app for the analysis, 
+  annotation and visualization of LC-MS/MS data.
+License: MIT + file LICENSE
+Imports: 
+    attempt,
+    config,
+    DT,
+    glue,
+    golem,
+    htmltools,
+    shiny
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+Suggests: 
+    spelling,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Language: en-US
