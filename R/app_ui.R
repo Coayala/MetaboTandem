@@ -3,14 +3,44 @@
 #' @param request Internal parameter for `{shiny}`.
 #'     DO NOT REMOVE.
 #' @import shiny
+#' @import shinydashboard
+#' @import shinyFiles
+#' @import shinydashboardPlus
 #' @noRd
 app_ui <- function(request) {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
-    # Your application UI logic
-    fluidPage(
-      golem::golem_welcome_page() # Remove this line to start building your UI
+    # Application UI logic
+
+    # Using shinyjs to toogle between the home screen and the four main MetaboTandem modes
+    shinyjs::useShinyjs(),
+
+    # Home screen
+    div(id = 'home',
+        style = 'display:none',
+        home_ui
+    ),
+    # Database management
+    div(id = 'database_app',
+        style = 'display:none',
+        database_appUI
+    ),
+    # Main pipeline
+    div(id = 'main_pipeline',
+        style = 'display:none',
+        ui_main()
+    ),
+    # Autotuner mode
+    div(id = 'autotuner_app',
+        style = 'display:none',
+        autotunerUI('use_autotuner')
+    ),
+
+    # MGF annotation mode
+    div(id = 'annotate_app',
+        style = 'display:none',
+        annotationappUI('solo_annotation')
     )
   )
 }
