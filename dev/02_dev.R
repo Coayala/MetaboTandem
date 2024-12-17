@@ -18,17 +18,26 @@
 ## install.packages('attachment') # if needed.
 attachment::att_amend_desc()
 
+## Adding R6 object ----
+
+golem::add_r6('MetaboTandem')
+
 ## Add modules ----
 ## Create a module infrastructure in R/
 ### Main pipeline
+golem::add_module(name = "main_pipeline", with_test = TRUE) # Name of the module
+#### Load data
 golem::add_module(name = "load_data", with_test = TRUE) # Name of the module
-golem::add_module(name = "load_data_metadata", with_test = TRUE) # Name of the module
-golem::add_module(name = "load_data_spectra", with_test = TRUE) # Name of the module
-golem::add_module(name = "name_of_module2", with_test = TRUE) # Name of the module
+golem::add_fct("load_data")
+
+golem::add_module(name = "peak_picking", with_test = TRUE) # Name of the module
+golem::add_fct("peak_picking")
+
 
 ## Add helper functions ----
 ## Creates fct_* and utils_*
-golem::add_fct("helpers", with_test = TRUE)
+golem::add_fct("home_ui")
+golem::add_utils("ui_helpers")
 golem::add_utils("helpers", with_test = TRUE)
 
 ## External resources
@@ -48,6 +57,15 @@ usethis::use_data_raw(name = "my_dataset", open = FALSE)
 usethis::use_test("app")
 
 # Documentation
+## Add packages
+usethis::use_package('shinydashboard')
+usethis::use_package('shinydashboardPlus')
+usethis::use_package('shinyFiles')
+usethis::use_package('shinyjqui')
+usethis::use_package('readr')
+usethis::use_package('dplyr')
+usethis::use_package('tidyr')
+usethis::use_package('MSnbase')
 
 ## Vignette ----
 usethis::use_vignette("MetaboTandem")

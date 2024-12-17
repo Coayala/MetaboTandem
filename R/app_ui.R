@@ -6,6 +6,7 @@
 #' @import shinydashboard
 #' @import shinyFiles
 #' @import shinydashboardPlus
+#' @import shinyWidgets
 #' @noRd
 app_ui <- function(request) {
   tagList(
@@ -16,31 +17,34 @@ app_ui <- function(request) {
     # Using shinyjs to toogle between the home screen and the four main MetaboTandem modes
     shinyjs::useShinyjs(),
 
+    # Using waiter
+    waiter::useWaiter(),
+
     # Home screen
     div(id = 'home',
         style = 'display:none',
-        home_ui
+        home_ui()
     ),
     # Database management
     div(id = 'database_app',
         style = 'display:none',
-        database_appUI
+        # database_appUI
     ),
     # Main pipeline
     div(id = 'main_pipeline',
         style = 'display:none',
-        ui_main()
+        mod_main_pipeline_ui()
     ),
     # Autotuner mode
     div(id = 'autotuner_app',
         style = 'display:none',
-        autotunerUI('use_autotuner')
+        # autotunerUI('use_autotuner')
     ),
 
     # MGF annotation mode
     div(id = 'annotate_app',
         style = 'display:none',
-        annotationappUI('solo_annotation')
+        # annotationappUI('solo_annotation')
     )
   )
 }
