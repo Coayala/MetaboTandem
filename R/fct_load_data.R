@@ -37,7 +37,11 @@ load_spectra_data <- function(datadir,
                               mode = 'onDisk'){
   # Get list of mass spectra files
   ms_files <- list.files(datadir, full.names = TRUE,
-                         pattern = paste0('*.', format))
+                         pattern = paste0('.*', format))
+
+  if(length(ms_files) < 1){
+    stop('No files of the specified format found in this directory')
+  }
 
   # Read data as an `OnDiskMSnExp` object from xcms
   data <- MSnbase::readMSData(ms_files,
@@ -60,17 +64,21 @@ load_spectra_data <- function(datadir,
 #' @export
 centroid_check <- function(data,
                            transform = TRUE){
-  is.centroided <- unique(MSnbase::fData(data)$centroided)
-  if(is.centroided){
-    print('Data is centroided')
-  } else{
-    print('Data is not centroided')
-    if(transform){
-      print('Transforming data')
-      data_cent <- data %>%
-        MSnbase::smooth(method = "SavitzkyGolay") %>%
-        MSnbase::pickPeaks()
+  if(!is.null(data)){
+    is.centroided <- unique(MSnbase::fData(data)$centroided)
+    if(is.centroided){
+      print('Data is centroided')
+    } else{
+      print('Data is not centroided')
+      if(transform){
+        print('Transforming data')
+        data_cent <- data %>%
+          MSnbase::smooth(method = "SavitzkyGolay") %>%
+          MSnbase::pickPeaks()
+      }
     }
+  } else {
+    stop('Data has not been loaded')
   }
 
   return(data_cent)

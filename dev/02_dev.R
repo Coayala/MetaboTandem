@@ -30,8 +30,13 @@ golem::add_module(name = "main_pipeline", with_test = TRUE) # Name of the module
 golem::add_module(name = "load_data", with_test = TRUE) # Name of the module
 golem::add_fct("load_data")
 
+#### Peak picking
 golem::add_module(name = "peak_picking", with_test = TRUE) # Name of the module
 golem::add_fct("peak_picking")
+
+#### Alignment
+golem::add_module(name = "alignment", with_test = TRUE) # Name of the module
+golem::add_fct("alignment")
 
 
 ## Add helper functions ----

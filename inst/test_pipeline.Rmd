@@ -15,11 +15,60 @@ devtools::load_all()
 
 ```{r}
 MTandem_obj <- MetaboTandem$new()
-MTandem_obj
+
 MTandem_obj$load_metadata(metadata_file = 'test_data/metadata.csv')
 MTandem_obj$metadata
 MTandem_obj$load_spectra_data('test_data/minimal_test/')
+
+
 MTandem_obj$centroid_check()
+MTandem_obj
 ```
+
+# Peak picking
+
+```{r}
+# test_peak_picking(MTandem_obj$data,
+#                   mz_range = c(300, 310),
+#                   rt_range = c(440, 550),
+#                   p_width = c(20, 100),
+#                   snt = 3,
+#                   noise = 1e6,
+#                   cores = 10)
+
+MTandem_obj$apply_peak_picking(method = 'cw',
+                               ppm = 25,
+                               p_width = c(20, 50),
+                               snt = 3,
+                               noise = 1e6,
+                               prefilter = c(1, 100),
+                               mz_diff = 0.001,
+                               cores = 10)
+
+MTandem_obj$apply_peak_refinement(expand_rt = 2,
+                                  expand_mz = 0,
+                                  ppm = 10,
+                                  min_prop = 0.75)
+
+xcms::hasChromPeaks(MTandem_obj$data)
+
+xcms::chromPeaks(MTandem_obj$data) %>% 
+  tidyr::as_tibble() %>% 
+  dplyr::group_by(sample) %>% 
+  dplyr::count() %>% 
+  cbind(SampleID = xcms::phenoData(MTandem_obj$data)@data$SampleID) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(SampleID, Num_peaks = n)
+
+xcms::featureDefinitions(MTandem_obj$data)
+```
+
+# Alignment
+
+```{r}
+
+```
+
+
 
 

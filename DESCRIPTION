@@ -7,21 +7,28 @@ Description: MetaboTandem is an R package and shiny app for the analysis,
     annotation and visualization of LC-MS/MS data.
 License: MIT + file LICENSE
 Imports: 
+    BiocParallel,
     config,
+    dplyr,
     DT,
     golem,
     magrittr,
     MSnbase,
+    parallel,
     R6,
     shiny,
+    shinyalert,
+    shinyBS,
     shinydashboard,
     shinydashboardPlus,
     shinyFiles,
     shinyjs,
     shinyWidgets,
+    tidyr,
     tools,
     vroom,
-    waiter
+    waiter,
+    xcms
 Suggests: 
     spelling,
     testthat (>= 3.0.0)

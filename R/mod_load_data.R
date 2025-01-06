@@ -13,7 +13,7 @@ mod_load_data_ui <- function(id) {
     # Load metadata
     headerbox_factory(
       title = 'Load Metadata',
-      status = 'info',
+      status = 'primary',
       width = 6,
       content = tagList(
         fileInput(ns('metadata_file'), 'Choose file', accept = c('.csv', '.tsv')),
@@ -53,7 +53,7 @@ mod_load_data_server <- function(id, MTandem_obj){
     output$load_spectra <- renderUI({
       headerbox_factory(
         title = 'Load Spectra Data',
-        status = 'info',
+        status = 'primary',
         width = 6,
         id = ns('spectra_box'),
         content = tagList(
@@ -68,13 +68,13 @@ mod_load_data_server <- function(id, MTandem_obj){
           br(),
           fluidRow(
             column(6,
-                   actionBttn(ns('load'), 'Load Data',
-                              style = 'jelly',
-                              color = 'primary',
-                              block = TRUE,
-                              size = 'sm')),
+                   shinyWidgets::actionBttn(ns('load'), 'Load Data',
+                                            style = 'jelly',
+                                            color = 'primary',
+                                            block = TRUE,
+                                            size = 'sm')),
             column(6,
-                   uiOutput(ns('next_buttonLD')))
+                   uiOutput(ns('nxt_bttn')))
           )
         )
       )
@@ -109,7 +109,7 @@ mod_load_data_server <- function(id, MTandem_obj){
         )
       } else {
         as.character(
-          colored_text('Error. Load data again', color = 'red')
+          colored_text('Error. Check data directory and load data again', color = 'red')
         )
       }
 
@@ -117,9 +117,9 @@ mod_load_data_server <- function(id, MTandem_obj){
       bindEvent(input$load)
 
     # Button to move to next step
-    output$next_buttonLD <- renderUI({
+    output$nxt_bttn <- renderUI({
       if(is(MTandem_obj$data, 'OnDiskMSnExp')){
-        next_button(id = 'next_button')
+        next_button(id = 'next_buttonLD')
       }
     }) %>%
       bindEvent(input$load)

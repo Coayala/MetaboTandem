@@ -4,9 +4,9 @@
 #'
 #' @param id,input,output,session Internal parameters for {shiny}.
 #'
-#' @noRd
-#'
 #' @importFrom shiny NS tagList
+#' @importFrom shinyalert shinyalert
+#' @noRd
 mod_main_pipeline_ui <- function() {
   dashboardPage(
 
@@ -104,18 +104,16 @@ mod_main_pipeline_ui <- function() {
         ## Pre-processing tabs
         tabItem(tabName = 'load_data',
                 h1('Load your data'),
-                # actionButton("Next1", "Next",icon =icon ('arrow-right')),
                 mod_load_data_ui("load_data_1")
         ),
 
         tabItem(tabName = 'p_pick',
-                h1('Peak Picking')
-                # peakPickingUI('p_pick')
+                h1('Peak Picking'),
+                mod_peak_picking_ui("peak_picking_1")
         ),
         tabItem(tabName = 'align',
-                h1('Spectra alignment')
-                #actionButton("Next3", "Next",icon =icon ('arrow-right'),disabled = TRUE),
-                # alignSpectraUI('align')
+                h1('Spectra alignment'),
+                mod_alignment_ui("alignment_1")
         ),
         tabItem(tabName = 'gap',
                 h1('Gap Filling')

@@ -6,7 +6,6 @@
 #' @import shinydashboard
 #' @import shinyFiles
 #' @import shinydashboardPlus
-#' @import shinyWidgets
 #' @noRd
 app_ui <- function(request) {
   tagList(
@@ -68,8 +67,15 @@ golem_add_external_resources <- function() {
     bundle_resources(
       path = app_sys("app/www"),
       app_title = "MetaboTandem"
-    )
+    ),
     # Add here other external resources
     # for example, you can add shinyalert::useShinyalert()
+    htmltools::htmlDependency("shinyBS",
+                              version = "0.62",
+                              src = "www",
+                              script = "shinyBS.js",
+                              stylesheet = "shinyBS.css",
+                              all_files = T,
+                              package = "shinyBS")
   )
 }

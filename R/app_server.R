@@ -37,27 +37,31 @@ app_server <- function(input, output, session) {
 
   ## Load data ----
   mod_load_data_server("load_data_1", MTandem_obj)
-  ### Next button logic in loadData
+  ### Next button logic in loadData server
   observeEvent(input$next_buttonLD ,{
     updateTabItems(session, "sidebarID", "p_pick")
   })
 
+  ## Peak picking ----
+  mod_peak_picking_server("peak_picking_1", MTandem_obj)
+  ### Next button logic in peak picking server
+  observeEvent(input$next_buttonPP ,{
+    updateTabItems(session, "sidebarID", "align")
+  })
+  ### Back button logic in peak picking server
+  observeEvent(input$back_buttonPP ,{
+    updateTabItems(session, "sidebarID", "load_data")
+  })
 
-  #
-  # #next button logic in peak picking
-  #
-  # observeEvent(input$next_buttonPP ,{
-  #   updateTabItems(session, "sidebarID", "align")
-  # })
+  ## Alignment ----
+  mod_alignment_server("alignment_1", MTandem_obj)
+
   # #next button logic in align
   # observeEvent(input$next_buttonSA ,{
   #   updateTabItems(session, "sidebarID", "gap")
   # })
   #
-  # #backbutton logic in peak picking
-  # observeEvent(input$back_buttonPP ,{
-  #   updateTabItems(session, "sidebarID", "load_data")
-  # })
+
   #
   # #back button logic in spectra align
   # observeEvent(input$back_buttonSA,{

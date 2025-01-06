@@ -18,12 +18,24 @@ headerbox_factory <- function(title, status, content, width = 6, id = NULL){
 }
 
 next_button <- function(id){
-  actionBttn(
+  shinyWidgets::actionBttn(
     inputId = id,
     label = 'Next',
     icon = icon('arrow-right'),
     style = 'jelly',
     color = 'success',
+    block = TRUE,
+    size = 'sm'
+  )
+}
+
+back_button <- function(id){
+  shinyWidgets::actionBttn(
+    inputId = id,
+    label = 'Back',
+    icon = icon('arrow-left'),
+    style = 'jelly',
+    color = 'danger',
     block = TRUE,
     size = 'sm'
   )
