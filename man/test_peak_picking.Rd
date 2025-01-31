@@ -24,6 +24,8 @@ test_peak_picking(
 
 \item{prefilter}{Prefilter step cutoff (\code{c(k, I)}). Mass will be retained if they contain at least \code{k} peaks with intensity >= \code{I}}
 
+\item{...}{Parameters to pass to the selected method}
+
 \item{mz.range}{\emph{mz} range (\code{numeric(2)}) to test peak picking parameters.}
 
 \item{rt.range}{\emph{rt} range (\code{numeric(2)}) to test peak picking parameters.}

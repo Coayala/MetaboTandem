@@ -7,44 +7,49 @@
 \alias{apply_peak_picking.mf}
 \title{Apply Peak Picking}
 \usage{
-apply_peak_picking(data, method, cores, ...)
+apply_peak_picking(data, method = c("cw", "mf", "mq"), cores = 1, ...)
 
 apply_peak_picking.cw(
   data,
-  cores = 1,
+  BPPARAM,
   ppm = 25,
   p_width = c(20, 50),
   snt = 3,
   noise = 1e+06,
   prefilter = c(1, 100),
-  mz_diff = 0.001
+  mz_diff = 0.001,
+  ...
 )
 
 apply_peak_picking.mq(
   data,
-  cores = 1,
+  BPPARAM,
   ppm = 25,
   p_width = c(20, 50),
   snt = 3,
   noise = 1e+06,
   prefilter = c(1, 100),
-  mz_diff = 0.001
+  mz_diff = 0.001,
+  ...
 )
 
 apply_peak_picking.mf(
   data,
-  cores = 1,
+  BPPARAM,
   bin = 0.1,
   fwhm = 30,
   sigma = 12.72,
   max = 10,
-  steps = 2
+  steps = 2,
+  ...
 )
 }
 \arguments{
 \item{data}{An \linkS4class{MSnExp} object in \emph{centroid} mode.}
 
 \item{method}{Character. Specifies the peak picking method. Options include 'cw' for CentWave, 'mq' for Massifquant, and 'mf' for MatchedFilter.}
+
+\item{BPPARAM}{BiocParallelParam-class object. Specifies the parallel processing parameters. Default is SnowParam with 4 workers.}
 
 \item{ppm}{Numeric. Specifies the parts per million for m/z tolerance. Additional parameters include p_width, snt, noise, prefilter, mz_diff, bin, fwhm, sigma, max, and steps, each with specific roles in peak picking.}
 
@@ -55,8 +60,6 @@ apply_peak_picking.mf(
 \item{noise}{Noise threshold.}
 
 \item{prefilter}{Prefilter step cutoff (\code{c(k, I)}). Mass will be retained if they contain at least \code{k} peaks with intensity >= \code{I}.}
-
-\item{BPPARAM}{BiocParallelParam-class object. Specifies the parallel processing parameters. Default is SnowParam with 4 workers.}
 }
 \value{
 MSnExp-class object after applying peak picking.

@@ -2,21 +2,21 @@
 % Please edit documentation in R/fct_load_data.R
 \name{load_metadata}
 \alias{load_metadata}
-\title{Load metadata}
+\title{Load Metadata}
 \usage{
 load_metadata(metadata_file)
 }
 \arguments{
-\item{metadata_file}{Path to the metadata file}
+\item{metadata_file}{Path to the dataframe file}
 }
 \value{
-Metadata table within the MetaboTandem object
+A dataframe with metadata
 }
 \description{
-Load metadata
+Function will load metadata and check its format
 }
 \details{
-Load metadata
+Load Metadata
 
-Function to load metadata into the MetaboTandem object
+Function to load metadata
 }
