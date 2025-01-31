@@ -13,7 +13,7 @@ apply_peak_refinement(
 )
 }
 \arguments{
-\item{data}{An [MSnExp-class] object in *centroid* mode.}
+\item{data}{An \linkS4class{MSnExp} object in \emph{centroid} mode.}
 
 \item{expand_rt}{Numeric. Specifies the range to expand retention time during peak merging. Default is 2.}
 

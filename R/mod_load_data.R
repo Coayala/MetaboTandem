@@ -22,7 +22,14 @@ mod_load_data_ui <- function(id) {
     ),
 
     # Load spectra
-    uiOutput(ns('load_spectra'))
+    uiOutput(ns('load_spectra')),
+
+    # next_button
+
+    fluidRow(
+      col_9(),
+      col_3(uiOutput(ns('nxt_bttn')))
+    )
   )
 }
 
@@ -32,12 +39,13 @@ mod_load_data_ui <- function(id) {
 mod_load_data_server <- function(id, MTandem_obj){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
-    # Load metadata server functions ----
 
+    # Waiter
     w_spectra_load <- waiter::Waiter$new(id = ns('spectra_box'),
                                          html = waiter::spin_hexdots(),
                                          color = waiter::transparent(.1))
 
+    # Load metadata server functions ----
     output$metadata_table <- DT::renderDT(
       {
         MTandem_obj$load_metadata(input$metadata_file$datapath)
@@ -72,9 +80,7 @@ mod_load_data_server <- function(id, MTandem_obj){
                                             style = 'jelly',
                                             color = 'primary',
                                             block = TRUE,
-                                            size = 'sm')),
-            column(6,
-                   uiOutput(ns('nxt_bttn')))
+                                            size = 'sm'))
           )
         )
       )
@@ -93,7 +99,7 @@ mod_load_data_server <- function(id, MTandem_obj){
 
     # Load spectra data and transform in centroid ----
 
-    output$is_loaded <- renderText({
+    is_loaded <- reactive({
       w_spectra_load$show()
       notid <- showNotification('Reading data...',
                                 duration = NULL, closeButton = FALSE)
@@ -103,6 +109,7 @@ mod_load_data_server <- function(id, MTandem_obj){
 
       MTandem_obj$centroid_check()
       w_spectra_load$hide()
+
       if(is(MTandem_obj$data, 'OnDiskMSnExp')){
         as.character(
           colored_text('Data loaded correctly', color = 'green')
@@ -112,20 +119,24 @@ mod_load_data_server <- function(id, MTandem_obj){
           colored_text('Error. Check data directory and load data again', color = 'red')
         )
       }
+    })
 
+    output$is_loaded <- renderText({
+      is_loaded()
     }) %>%
       bindEvent(input$load)
 
     # Button to move to next step
-    output$nxt_bttn <- renderUI({
-      if(is(MTandem_obj$data, 'OnDiskMSnExp')){
-        next_button(id = 'next_buttonLD')
-      }
+    observe({
+      req(is_loaded)
+      output$nxt_bttn <- renderUI({
+        if(is(MTandem_obj$data, 'OnDiskMSnExp')){
+          next_button(id = 'next_buttonLD')
+        }
+      })
     }) %>%
       bindEvent(input$load)
   })
-
-
 }
 
 ## To be copied in the UI

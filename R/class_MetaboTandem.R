@@ -12,6 +12,9 @@ MetaboTandem <- R6::R6Class(
       self$metadata <- load_metadata(metadata_file)
       invisible(self)
     },
+    get_groups = function(){
+      colnames(self$metadata)[-which(colnames(self$metadata) == 'SampleID')]
+    },
     load_spectra_data = function(datadir,
                                  format = 'mzML',
                                  mode = 'onDisk'){
@@ -35,32 +38,10 @@ MetaboTandem <- R6::R6Class(
       invisible(self)
     },
     apply_peak_picking = function(method,
-                                  ppm = 25,
-                                  p_width = c(20, 50),
-                                  snt = 3,
-                                  noise = 1e6,
-                                  prefilter = c(1, 100),
-                                  mz_diff = 0.001,
-                                  bin = 0.1,
-                                  fwhm = 30,
-                                  sigma = 12.72,
-                                  max = 10,
-                                  steps = 2,
-                                  cores = 1){
+                                  ...){
       tryCatch({self$data = apply_peak_picking(self$data,
                                                method = method,
-                                               ppm = ppm,
-                                               p_width = p_width,
-                                               snt = snt,
-                                               noise = noise,
-                                               prefilter = prefilter,
-                                               mz_diff = mz_diff,
-                                               bin = bin,
-                                               fwhm = fwhm,
-                                               sigma = sigma,
-                                               max = max,
-                                               steps = steps,
-                                               cores = cores)},
+                                               ...)},
                error = function(e){
                  message('Error:\n', e)
                },
@@ -77,6 +58,32 @@ MetaboTandem <- R6::R6Class(
                                                   expand_mz = expand_mz,
                                                   ppm = ppm,
                                                   min_prop = min_prop)},
+               error = function(e){
+                 message('Error:\n', e)
+               },
+               finally = {
+                 invisible(self)
+               })
+    },
+    apply_alignment = function(method,
+                               ...){
+      tryCatch({self$data = apply_alignment(self$data,
+                                            self$metadata,
+                                            method = method,
+                                            ...)},
+               error = function(e){
+                 message('Error:\n', e)
+               },
+               finally = {
+                 invisible(self)
+               })
+    },
+    apply_correspondence = function(method,
+                                    ...){
+      tryCatch({self$data = apply_correspondence(self$data,
+                                                 self$metadata,
+                                                 method = method,
+                                                 ...)},
                error = function(e){
                  message('Error:\n', e)
                },

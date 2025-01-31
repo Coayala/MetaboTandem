@@ -1,22 +1,50 @@
-#' Load metadata
+#' Load DataFrame
 #'
 #' Function to load metadata into the MetaboTandem object
 #'
-#' @title Load metadata
-#' @description Load metadata
-#' @param metadata_file Path to the metadata file
+#' @title Load dataframe
+#' @description Load dataframe
+#' @param file Path to the dataframe file
 #'
-#' @return Metadata table within the MetaboTandem object
+#' @return A dataframe
+#'
+#' @export
+load_dataframe <- function(file){
+  ext <- tools::file_ext(file)
+  if(ext == 'csv'){
+    df <- vroom::vroom(file, delim = ",")
+  } else if(ext == 'tsv'){
+    df <- vroom::vroom(file, delim = "\t")
+  } else{
+    stop("Invalid file; Please upload a .csv or .tsv file")
+  }
+
+  return(df)
+}
+
+
+#' Load Metadata
+#'
+#' Function to load metadata
+#'
+#' @title Load Metadata
+#' @description Function will load metadata and check its format
+#' @param metadata_file Path to the dataframe file
+#'
+#' @return A dataframe with metadata
 #'
 #' @export
 load_metadata <- function(metadata_file){
-  ext <- tools::file_ext(metadata_file)
-  if(ext == 'csv'){
-    metadata <- vroom::vroom(metadata_file, delim = ",")
-  } else if(ext == 'tsv'){
-    metadata <- vroom::vroom(metadata_file, delim = "\t")
-  } else{
-    stop("Invalid file; Please upload a .csv or .tsv file")
+
+  metadata <- load_dataframe(metadata_file)
+
+  if(!('SampleID' %in% colnames(metadata))){
+    stop('Metadata requires a column named "SampleID" with sample names')
+  } else if(ncol(metadata) < 2){
+    stop('Metadata file requires at least two columns: "SampleID", and at least
+         one other column with sample information')
+  } else {
+    return(metadata)
   }
 }
 

@@ -116,9 +116,8 @@ mod_main_pipeline_ui <- function() {
                 mod_alignment_ui("alignment_1")
         ),
         tabItem(tabName = 'gap',
-                h1('Gap Filling')
-                #actionButton("Next4", "Next",icon =icon ('arrow-right'),disabled = TRUE),
-                # gapFillingUI('gap')
+                h1('Gap Filling'),
+                mod_gap_filling_ui("gap_filling_1")
         ),
 
         ## Annotation module

@@ -55,18 +55,26 @@ app_server <- function(input, output, session) {
 
   ## Alignment ----
   mod_alignment_server("alignment_1", MTandem_obj)
+  ### Next button logic in peak picking server
+  observeEvent(input$next_buttonAL ,{
+    updateTabItems(session, "sidebarID", "gap")
+  })
+  ### Back button logic in peak picking server
+  observeEvent(input$back_buttonAL ,{
+    updateTabItems(session, "sidebarID", "p_pick")
+  })
 
-  # #next button logic in align
-  # observeEvent(input$next_buttonSA ,{
-  #   updateTabItems(session, "sidebarID", "gap")
-  # })
-  #
+  ## Gap Filling ----
+  mod_gap_filling_server("gap_filling_1", MTandem_obj)
+  ## Next button logic in peak picking server
+  observeEvent(input$next_buttonGF_no_gap ,{
+    updateTabItems(session, "sidebarID", "")
+  })
+  ### Back button logic in peak picking server
+  observeEvent(input$back_buttonGF ,{
+    updateTabItems(session, "sidebarID", "align")
+  })
 
-  #
-  # #back button logic in spectra align
-  # observeEvent(input$back_buttonSA,{
-  #   updateTabItems(session, "sidebarID", "p_pick")
-  # })
   #
   # #back button logic in gap filling
   # observeEvent(input$back_buttonGF ,{

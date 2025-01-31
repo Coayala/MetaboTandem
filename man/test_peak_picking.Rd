@@ -16,17 +16,17 @@ test_peak_picking(
 )
 }
 \arguments{
-\item{data}{An [MSnExp-class] object in *centroid* mode.}
+\item{data}{An \linkS4class{MSnExp} object in \emph{centroid} mode.}
 
 \item{snt}{Minimum signal-to-noise threshold allowed}
 
 \item{noise}{Noise threshold}
 
-\item{prefilter}{Prefilter step cutoff (`c(k, I)`). Mass will be retained if they contain at least `k` peaks with intensity >= `I`}
+\item{prefilter}{Prefilter step cutoff (\code{c(k, I)}). Mass will be retained if they contain at least \code{k} peaks with intensity >= \code{I}}
 
-\item{mz.range}{*mz* range (`numeric(2)`) to test peak picking parameters.}
+\item{mz.range}{\emph{mz} range (\code{numeric(2)}) to test peak picking parameters.}
 
-\item{rt.range}{*rt* range (`numeric(2)`) to test peak picking parameters.}
+\item{rt.range}{\emph{rt} range (\code{numeric(2)}) to test peak picking parameters.}
 
 \item{p.width}{Minium and maximum allowed peak width}
 }

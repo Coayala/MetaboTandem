@@ -37,6 +37,11 @@ golem::add_fct("peak_picking")
 #### Alignment
 golem::add_module(name = "alignment", with_test = TRUE) # Name of the module
 golem::add_fct("alignment")
+golem::add_fct("correspondence")
+
+#### Gap fillinf
+golem::add_module(name = "gap_filling", with_test = TRUE) # Name of the module
+golem::add_fct("gap_filling")
 
 
 ## Add helper functions ----

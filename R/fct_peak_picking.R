@@ -3,6 +3,7 @@
 #' @title Test Peak Picking
 #' @description Tests peak picking parameters on a subset of the data.
 #' @return Modified MSnExp-class object with tested peak picking parameters.
+#' @param ... Parameters to pass to the selected method
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param mz.range *mz* range (`numeric(2)`) to test peak picking parameters.
 #' @param rt.range *rt* range (`numeric(2)`) to test peak picking parameters.
@@ -64,7 +65,14 @@ test_peak_picking <- function(data,
 #' @title Apply Peak Picking
 #' @description Functions to perform peak picking on the data:
 #'
-#'   `apply_peak_picking:` Wrapper to perform peak picking with any of the methods
+#'  * `apply_peak_picking`
+#'    * Wrapper to perform peak picking with any of the methods
+#'  * `apply_peak_picking.cw`
+#'    * Peak picking with the CentWave method
+#'  * `apply_peak_picking.mf`
+#'    * Peak picking with the Massifquant method
+#'  * `apply_peak_picking.mq`
+#'    * Peak picking with the MatchedFilter method
 #'
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param p_width  Minium and maximum allowed peak width.
@@ -78,26 +86,39 @@ test_peak_picking <- function(data,
 #' @rdname peak_picking
 #' @export
 apply_peak_picking <- function(data,
-                               method,
+                               method = c('cw', 'mf', 'mq'),
+                               cores = 1,
                                ...){
-  # Test peak picking parameters
+  # Validating arguments
+  method <- match.arg(method)
 
+  # Validating number of cores
+  if(cores == 1){
+    print('Using a single core')
+
+    BPPARAM <- BiocParallel::SerialParam()
+  } else if(cores > 1){
+
+    print('Requesting multiple cores')
+    BPPARAM <- BiocParallel::SnowParam(workers = cores)
+  }
+
+  # Apply peak picking
+
+
+  # Choosing methods
   if(method == 'cw'){
 
-    data <- apply_peak_picking.cw(data, ...)
+    data <- apply_peak_picking.cw(data, BPPARAM, ...)
 
   } else if(method == 'mq'){
 
-    data <- apply_peak_picking.mq(data, ...)
+    data <- apply_peak_picking.mq(data, BPPARAM, ...)
 
   } else if(method == 'mf'){
 
-    data <- apply_peak_picking.mf(data, ...)
+    data <- apply_peak_picking.mf(data, BPPARAM, ...)
 
-  } else {
-    print('Please enter "cw" for the CentWave algorithm, "mf" for the MatchedFilter algorithm,
-          or "mq" for the Massifquant algorithm')
-    stop()
   }
 
   return(data)
@@ -106,13 +127,16 @@ apply_peak_picking <- function(data,
 #' @rdname peak_picking
 #' @export
 apply_peak_picking.cw <- function(data,
+                                  BPPARAM,
                                   ppm = 25,
                                   p_width = c(20, 50),
                                   snt = 3,
                                   noise = 1e6,
                                   prefilter = c(1, 100),
-                                  mz_diff = 0.001){
+                                  mz_diff = 0.001,
+                                  ...){
 
+  # Create parameters object
   sel_param <- xcms::CentWaveParam(
     ppm = ppm,
     peakwidth = p_width,
@@ -122,16 +146,9 @@ apply_peak_picking.cw <- function(data,
     mzdiff = mz_diff
   )
 
-  print('Starting peak picking')
+  print('Starting peak picking with CentWave method')
 
-  if(cores == 1){
-    print('Using a single core')
-  } else if(cores > 1){
-
-    print('Requesting multiple cores')
-  }
-
-  BPPARAM <- BiocParallel::SnowParam(workers = cores)
+  # Apply peak picking
   data <- xcms::findChromPeaks(data, param = sel_param, BPPARAM = BPPARAM)
 
   return(data)
@@ -141,13 +158,16 @@ apply_peak_picking.cw <- function(data,
 #' @rdname peak_picking
 #' @export
 apply_peak_picking.mq <- function(data,
+                                  BPPARAM,
                                   ppm = 25,
                                   p_width = c(20, 50),
                                   snt = 3,
                                   noise = 1e6,
                                   prefilter = c(1, 100),
-                                  mz_diff = 0.001){
+                                  mz_diff = 0.001,
+                                  ...){
 
+  # Create parameters object
   params <- xcms::MassifquantParam(
     ppm = ppm,
     peakwidth = p_width,
@@ -157,16 +177,9 @@ apply_peak_picking.mq <- function(data,
     mzdiff = mz_diff
   )
 
-  print('Starting peak picking')
+  print('Starting peak picking with Massifquant method')
 
-  if(cores == 1){
-    print('Using a single core')
-  } else if(cores > 1){
-
-    print('Requesting multiple cores')
-  }
-
-  BPPARAM <- BiocParallel::SnowParam(workers = cores)
+  # Apply peak picking
   data <- xcms::findChromPeaks(data, param = sel_param, BPPARAM = BPPARAM)
 
   return(data)
@@ -175,13 +188,15 @@ apply_peak_picking.mq <- function(data,
 #' @rdname peak_picking
 #' @export
 apply_peak_picking.mf <- function(data,
+                                  BPPARAM,
                                   bin = 0.1,
                                   fwhm = 30,
                                   sigma = 12.72,
                                   max = 10,
                                   steps = 2,
-                                  cores = 1){
+                                  ...){
 
+  # Create parameters object
   sel_param <- xcms::MatchedFilterParam(
     binSize = bin,
     fwhm = fwhm,
@@ -190,16 +205,9 @@ apply_peak_picking.mf <- function(data,
     steps = steps
   )
 
-  print('Starting peak picking')
+  print('Starting peak picking with MatchedFilter method')
 
-  if(cores == 1){
-    print('Using a single core')
-  } else if(cores > 1){
-
-    print('Requesting multiple cores')
-  }
-
-  BPPARAM <- BiocParallel::SnowParam(workers = cores)
+  # Apply peak picking
   data <- xcms::findChromPeaks(data, param = sel_param, BPPARAM = BPPARAM)
 
   return(data)
@@ -223,6 +231,7 @@ apply_peak_refinement <- function(data,
                                   ppm = 10,
                                   min_prop = 0.75){
 
+  # Create parameters object
   mpp <- xcms::MergeNeighboringPeaksParam(expandRt = expand_rt,
                                           expandMz = expand_mz,
                                           ppm = ppm,

@@ -7,7 +7,7 @@
 apply_alignment(data, metadata, method)
 }
 \arguments{
-\item{data}{An [MSnExp-class] object in *centroid* mode.}
+\item{data}{An \linkS4class{MSnExp} object in \emph{centroid} mode.}
 
 \item{metadata}{Sample information data.frame.}
 
@@ -17,7 +17,7 @@ be present to be considered a peak group.}
 \item{min_samples}{Minimum number of samples in at least one sample group a
 peak must be present to be considered a peak group.}
 
-\item{bin}{Size of the overlapping *mz* slices}
+\item{bin}{Size of the overlapping \emph{mz} slices}
 
 \item{bw}{= Bandwidth of the smoothing kernel}
 

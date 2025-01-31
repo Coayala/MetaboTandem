@@ -7,10 +7,11 @@
 \alias{apply_peak_picking.mf}
 \title{Apply Peak Picking}
 \usage{
-apply_peak_picking(data, method, ...)
+apply_peak_picking(data, method, cores, ...)
 
 apply_peak_picking.cw(
   data,
+  cores = 1,
   ppm = 25,
   p_width = c(20, 50),
   snt = 3,
@@ -21,6 +22,7 @@ apply_peak_picking.cw(
 
 apply_peak_picking.mq(
   data,
+  cores = 1,
   ppm = 25,
   p_width = c(20, 50),
   snt = 3,
@@ -31,16 +33,16 @@ apply_peak_picking.mq(
 
 apply_peak_picking.mf(
   data,
+  cores = 1,
   bin = 0.1,
   fwhm = 30,
   sigma = 12.72,
   max = 10,
-  steps = 2,
-  cores = 1
+  steps = 2
 )
 }
 \arguments{
-\item{data}{An [MSnExp-class] object in *centroid* mode.}
+\item{data}{An \linkS4class{MSnExp} object in \emph{centroid} mode.}
 
 \item{method}{Character. Specifies the peak picking method. Options include 'cw' for CentWave, 'mq' for Massifquant, and 'mf' for MatchedFilter.}
 
@@ -52,7 +54,7 @@ apply_peak_picking.mf(
 
 \item{noise}{Noise threshold.}
 
-\item{prefilter}{Prefilter step cutoff (`c(k, I)`). Mass will be retained if they contain at least `k` peaks with intensity >= `I`.}
+\item{prefilter}{Prefilter step cutoff (\code{c(k, I)}). Mass will be retained if they contain at least \code{k} peaks with intensity >= \code{I}.}
 
 \item{BPPARAM}{BiocParallelParam-class object. Specifies the parallel processing parameters. Default is SnowParam with 4 workers.}
 }
@@ -61,8 +63,24 @@ MSnExp-class object after applying peak picking.
 }
 \description{
 Functions to perform peak picking on the data:
-
-  `apply_peak_picking:` Wrapper to perform peak picking with any of the methods
+\itemize{
+\item \code{apply_peak_picking}
+\itemize{
+\item Wrapper to perform peak picking with any of the methods
+}
+\item \code{apply_peak_picking.cw}
+\itemize{
+\item Peak picking with the CentWave method
+}
+\item \code{apply_peak_picking.mf}
+\itemize{
+\item Peak picking with the Massifquant method
+}
+\item \code{apply_peak_picking.mq}
+\itemize{
+\item Peak picking with the MatchedFilter method
+}
+}
 }
 \details{
 Apply Peak Picking

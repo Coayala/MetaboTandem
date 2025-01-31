@@ -45,3 +45,15 @@ colored_text <- function(text, color){
   shiny::tags$span(text,
                    style = paste0('color:', color))
 }
+
+other_arrow_button <- function(id, label){
+  shinyWidgets::actionBttn(
+    inputId = id,
+    label = label,
+    icon = icon('arrow-right'),
+    style = 'jelly',
+    color = 'success',
+    block = TRUE,
+    size = 'sm'
+  )
+}
