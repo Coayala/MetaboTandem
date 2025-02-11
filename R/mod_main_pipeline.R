@@ -7,7 +7,7 @@
 #' @importFrom shiny NS tagList
 #' @importFrom shinyalert shinyalert
 #' @noRd
-mod_main_pipeline_ui <- function() {
+mod_main_pipeline_ui <- function(id) {
   dashboardPage(
 
     # Header
@@ -62,24 +62,24 @@ mod_main_pipeline_ui <- function() {
                  tabName = 'stat',
                  icon = icon('chart-line'),
                  menuSubItem('Setup',
-                             tabName = 'stats-setup',
+                             tabName = 'stats_setup',
                              icon = icon('tasks')),
                  menuSubItem('Multivariate analysis',
-                             tabName = 'stats-mult',
+                             tabName = 'stats_multi',
                              icon = icon('chart-bar')),
-                 menuSubItem('Differential expression',
-                             tabName = 'diff-exp',
+                 menuSubItem('Univariate analysis',
+                             tabName = 'stats_univ',
                              icon = icon('expand-alt')),
-                 startExpanded = TRUE),
-        menuItem('Results summary',
-                 tabName = 'res_summ',
-                 icon = icon('table')),
-        menuItem('Results Download',
-                 tabName = 'res',
-                 icon = icon('download'),
-                 menuSubItem('Pre-processing Tables',
-                             tabName = 'res_preproc',
-                             icon = icon('file-download')))
+                 startExpanded = TRUE)
+        # menuItem('Results summary',
+        #          tabName = 'res_summ',
+        #          icon = icon('table')),
+        # menuItem('Results Download',
+        #          tabName = 'res',
+        #          icon = icon('download'),
+        #          menuSubItem('Pre-processing Tables',
+        #                      tabName = 'res_preproc',
+        #                      icon = icon('file-download')))
       )
     ),
 
@@ -131,29 +131,29 @@ mod_main_pipeline_ui <- function() {
         ),
 
         ## Statistical analysis
-        tabItem(tabName = 'stats-setup',
-                h1('Set options for statistical analysis')
-                # statsSetupUI('st_setup')
+        tabItem(tabName = 'stats_setup',
+                h1('Preprocess data for statistical analysis'),
+                mod_stats_setup_ui("stats_setup_1")
         ),
-        tabItem(tabName = 'stats-mult',
-                h1('Multivariate Analysis')
-                # multivariateUI('multi')
+        tabItem(tabName = 'stats_multi',
+                h1('Multivariate Analysis'),
+                mod_stats_multi_ui("stats_multi_1")
         ),
-        tabItem(tabName = 'diff-exp',
-                h1('Differential Analysis')
-                # diffExpressionUI('diffexp')
-        ),
+        tabItem(tabName = 'stats_univ',
+                h1('Univariate analysis'),
+                mod_stats_univ_ui("stats_univ_1")
+        )
 
         ## Results tabs
-        tabItem(tabName = 'res_summ',
-                h1('Results summary')
-                # summaryUI('summ')
-        ),
-
-        tabItem(tabName = 'res_preproc',
-                h1('Select data to download')
-                # download_ResultspreprocUI('dl_preproc')
-        )
+        # tabItem(tabName = 'res_summ',
+        #         h1('Results summary')
+        #         # summaryUI('summ')
+        # ),
+        #
+        # tabItem(tabName = 'res_preproc',
+        #         h1('Select data to download')
+        #         # download_ResultspreprocUI('dl_preproc')
+        # )
       )
     ),
 

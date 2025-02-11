@@ -10,30 +10,32 @@
 mod_alignment_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    headerbox_factory(
-      title = HTML('Retention Time<br/>Alignment Method'),
-      status = 'primary',
-      width = 6,
-      content = tagList(
-        selectInput(ns('al_method'), 'Select method to use:',
-                    c('Obiwarp' = 'ow',
-                      'Peak Groups' = 'pg',
-                      'Landmark-based' = 'lama'))
-      )
-    ),
-    headerbox_factory(
-      title = HTML('Correspondence<br/>Method'),
-      status = 'primary',
-      width = 6,
-      content = tagList(
-        selectInput(ns('cor_method'), 'Select method to use:',
-                    c('Peak Density' = 'pd',
-                      'Nearest Peak' = 'np'))
-      )
+    fluidRow(
+      headerbox_factory(
+        title = HTML('Retention Time<br/>Alignment Method'),
+        status = 'primary',
+        width = 6,
+        content = tagList(
+          selectInput(ns('al_method'), 'Select method to use:',
+                      c('Obiwarp' = 'ow',
+                        'Peak Groups' = 'pg',
+                        'Landmark-based' = 'lama'))
+        )
+      ),
+      headerbox_factory(
+        title = HTML('Correspondence<br/>Method'),
+        status = 'primary',
+        width = 6,
+        content = tagList(
+          selectInput(ns('cor_method'), 'Select method to use:',
+                      c('Peak Density' = 'pd',
+                        'Nearest Peak' = 'np'))
+        )
+      ),
+      uiOutput(ns('al_params'))
     ),
 
     # Parameters for selected alignment method
-    uiOutput(ns('al_params')),
 
     fluidRow(
       uiOutput(ns('al_selected_params')),
@@ -282,7 +284,7 @@ mod_alignment_server <- function(id, MTandem_obj){
           fluidRow(
             col_12(plotOutput(ns('al_figures'))),
             hr(),
-            col_12(htmlOutput(ns('cor_results')))
+            col_12(uiOutput(ns('cor_results')))
           )
         )
       )
@@ -343,7 +345,8 @@ mod_alignment_server <- function(id, MTandem_obj){
       }
     },
     striped = TRUE,
-    bordered = TRUE
+    bordered = TRUE,
+    width = '100%'
     ) %>%
       bindEvent(input$align)
 
@@ -381,30 +384,26 @@ mod_alignment_server <- function(id, MTandem_obj){
       }
     },
     striped = TRUE,
-    bordered = TRUE
+    bordered = TRUE,
+    width = '100%'
     ) %>%
       bindEvent(input$align)
 
+    # Applying alignment and correspondence ----
     has_correspondence <- reactive({
       waiter_al$show()
-
-
-      if(input$al_method == 'pg'){
-        bs <- input$bin_size_pg
-      } else {
-        bs <- input$bin_size_ow
-      }
 
       notid <- showNotification('Aligning spectra...',
                                 duration = NULL, closeButton = FALSE)
       on.exit(removeNotification(notid), add = TRUE)
       MTandem_obj$apply_alignment(method = input$al_method,
                                   group_by = input$group_by,
-                                  bin_size = bs,
+                                  bin_size_pg = input$bin_size_pg,
                                   ppm_bin = input$ppm_pg,
                                   min_fraction = input$min_fraction,
                                   extra_peaks = input$extra_peaks,
                                   smooth = input$smooth,
+                                  bin_size_ow = input$bin_size_ow,
                                   span = input$span_pg,
                                   family = input$family,
                                   smooth_responsiveness = input$response,
@@ -414,7 +413,7 @@ mod_alignment_server <- function(id, MTandem_obj){
                                   lama_file = input$lama_file$datapath,
                                   lama_method = input$lama_method,
                                   span_lama = input$span_lama,
-                                  ppm = input$ppm_lama,
+                                  ppm_lama = input$ppm_lama,
                                   tolerance_mz = input$lama_mztol,
                                   tolerance_rt = input$lama_rttol,
                                   gam_smoothing =  input$gam_smooth)
@@ -436,25 +435,10 @@ mod_alignment_server <- function(id, MTandem_obj){
 
       waiter_al$hide()
 
-      if(xcms::hasFeatures(MTandem_obj$data)){
-        res <- as.character(
-          colored_text(
-            paste0('A total of ', nrow(xcms::featureDefinitions(MTandem_obj$data)),
-                   ' were detected.'),
-            color = 'green'
-          )
-        )
-      } else {
-        res <- as.character(
-          colored_text('No features were detected', color = 'red')
-        )
-      }
-
-      res
+      xcms::hasFeatures(MTandem_obj$data)
 
     })
 
-    # Applying alignment and correspondence ----
     observe({
       req(has_correspondence())
       output$al_figures <- renderPlot({
@@ -478,21 +462,30 @@ mod_alignment_server <- function(id, MTandem_obj){
     }) %>%
       bindEvent(input$align)
 
-    ## Correspondence results
-    output$cor_results <- renderText({
-      has_correspondence()
+    ## Correspondence results ----
+    output$cor_results <- renderUI({
+      if(has_correspondence()){
+        res <- colored_text(
+          paste0('Alignment completed successfully. ',
+                 'A total of ', nrow(xcms::featureDefinitions(MTandem_obj$data)),
+                 ' features were found after correspondence.'),
+          color = 'green'
+        )
+
+      } else {
+        res <- colored_text('No features were detected', color = 'red')
+      }
+
+      res
     }) %>%
       bindEvent(input$align)
 
-    ## Button to move to next step ----
-    observe({
-      req(has_correspondence())
-      output$next_buttonAL <- renderUI({
+    # Button to move to next step ----
 
-        if(xcms::hasFeatures(MTandem_obj$data)){
-          next_button(id = 'next_buttonAL')
-        }
-      })
+    output$next_buttonAL <- renderUI({
+      if(has_correspondence()){
+        next_button(id = 'next_buttonAL')
+      }
     }) %>%
       bindEvent(input$align)
 

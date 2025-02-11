@@ -17,6 +17,16 @@ headerbox_factory <- function(title, status, content, width = 6, id = NULL){
   )
 }
 
+colorpicker_factory <- function(id, label){
+  colourpicker::colourInput(id,
+                            label = label,
+                            value = paste0(
+                              '#', paste0(sample(0:9, 6, replace = TRUE),
+                                          collapse = '')
+                            ),
+                            closeOnClick = TRUE)
+}
+
 next_button <- function(id){
   shinyWidgets::actionBttn(
     inputId = id,

@@ -2,7 +2,6 @@
 #' @description Function to apply peak alignment
 #' @param data An [MSnExp-class] object in *centroid* mode.
 #' @param metadata Sample information data.frame.
-
 #' @return MSnExp-class object after alignment.
 #' @rdname alignment
 #' @export
@@ -36,7 +35,7 @@ apply_alignment <- function(data,
 apply_alignment.pg <- function(data,
                                metadata,
                                group_by,
-                               bin_size = 0.25,
+                               bin_size_pg = 0.25,
                                ppm_bin = 0,
                                min_fraction = 0.9,
                                extra_peaks = 1,
@@ -69,7 +68,7 @@ apply_alignment.pg <- function(data,
     bw = 30,
     minFraction = min_fraction,
     minSamples = 1,
-    binSize = bin_size,
+    binSize = bin_size_pg,
     ppm = ppm_bin,
     maxFeatures = 50
   )
@@ -105,7 +104,7 @@ apply_alignment.pg <- function(data,
 #' @export
 apply_alignment.ow <- function(data,
                                metadata,
-                               bin_size = 1,
+                               bin_size_ow = 1,
                                smooth_responsiveness = 1,
                                distance_function = c('cor', 'cor_opt', 'cov',
                                                      'prd', 'euc'),
@@ -126,7 +125,7 @@ apply_alignment.ow <- function(data,
   }
 
   sel_param <- xcms::ObiwarpParam(
-    binSize = bin_size,
+    binSize = bin_size_ow,
     response = smooth_responsiveness,
     distFun = distance_function,
     localAlignment = local_alignment,
@@ -158,7 +157,7 @@ apply_alignment.lama <- function(data,
                                  lama_file,
                                  lama_method = c('loess', 'gam'),
                                  span_lama = 0.5,
-                                 ppm = 20,
+                                 ppm_lama = 20,
                                  tolerance_mz = 0,
                                  tolerance_rt = 5,
                                  gam_smoothing =  c('tp', 'ts', 'ds', 'cr', 'cs',
@@ -180,7 +179,7 @@ apply_alignment.lama <- function(data,
     lamas = lama_df,
     method = lama_method,
     span = span_lama,
-    ppm = ppm,
+    ppm = ppm_lama,
     tolerance = tolerance_mz,
     toleranceRt = tolerance_rt,
     bs = gam_smoothing

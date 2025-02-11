@@ -39,9 +39,23 @@ golem::add_module(name = "alignment", with_test = TRUE) # Name of the module
 golem::add_fct("alignment")
 golem::add_fct("correspondence")
 
-#### Gap fillinf
+#### Gap filling
 golem::add_module(name = "gap_filling", with_test = TRUE) # Name of the module
 golem::add_fct("gap_filling")
+
+#### Statistical Analysis
+golem::add_module(name = "stats_setup", with_test = TRUE) # Name of the module
+golem::add_fct("extract")
+golem::add_fct("normalization")
+golem::add_fct("data_filter")
+
+##### Univariate analysis
+golem::add_module(name = "stats_univ", with_test = TRUE) # Name of the module
+golem::add_fct("stats_univ")
+##### Multivariate analysis
+golem::add_module(name = "stats_multi", with_test = TRUE) # Name of the module
+golem::add_fct("stats_multi")
+golem::add_fct("external")
 
 
 ## Add helper functions ----

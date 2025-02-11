@@ -22,7 +22,6 @@ MTandem_obj$get_groups()
 
 MTandem_obj$load_spectra_data('test_data/minimal_test/')
 
-
 MTandem_obj$centroid_check()
 ```
 
@@ -46,10 +45,10 @@ MTandem_obj$apply_peak_picking(method = 'cw',
                                mz_diff = 0.001,
                                cores = 10)
 
-MTandem_obj$apply_peak_refinement(expand_rt = 2,
-                                  expand_mz = 0,
-                                  ppm = 10,
-                                  min_prop = 0.75)
+# MTandem_obj$apply_peak_refinement(expand_rt = 2,
+#                                   expand_mz = 0,
+#                                   ppm = 10,
+#                                   min_prop = 0.75)
 
 xcms::hasChromPeaks(MTandem_obj$data)
 
@@ -66,24 +65,15 @@ xcms::chromPeaks(MTandem_obj$data) %>%
 # Alignment
 
 ```{r}
-
-# subset_samples <- c('RP_S42', 'RP_S41')
-# 
-# MTandem_obj$apply_alignment(method = 'pg',
-#                             group_by = 'treatment',
-#                             bin_size = 0.25,
-#                             ppm = 0,
-#                             min_fraction = 0.9,
-#                             extra_peaks = 1,
-#                             smooth = 'loess',
-#                             span = 1,
-#                             family = 'gaussian',
-#                             cores = 3)
-
-MTandem_obj$apply_alignment(method = 'ow',
-                            bin_size = 1,
-                            smooth_responsiveness = 1,
-                            distance_function = 'euc')
+MTandem_obj$apply_alignment(method = 'pg',
+                            group_by = 'treatment',
+                            bin_size = 0.25,
+                            ppm = 0,
+                            min_fraction = 0.9,
+                            extra_peaks = 1,
+                            smooth = 'loess',
+                            span = 1,
+                            family = 'gaussian')
 
 treatment_colors <- setNames(ggpubr::get_palette('Dark2',
                                                  length(unique(MTandem_obj$metadata$treatment))),
@@ -92,7 +82,7 @@ treatment_colors <- setNames(ggpubr::get_palette('Dark2',
 col_vector <- treatment_colors[MTandem_obj$metadata$treatment]
 
 
-xcms::plotAdjustedRtime(MTandem_obj$data, col = col_vector, lwd = 3, cex = .7)
+xcms::plotAdjustedRtime(MTandem_obj$data, col = col_vector, lwd = 1.5, cex = .7)
 legend('topleft', legend = names(treatment_colors), col = treatment_colors, 
        lty = rep(1, length(treatment_colors)), cex = .8, 
        lwd = rep(2, length(treatment_colors)))
@@ -104,12 +94,35 @@ MTandem_obj$apply_correspondence(method = 'np',
                                  abs_mz = 0.2,
                                  abs_rt = 15,
                                  knn = 10)
+```
 
+# Gap Filling
 
-nrow(xcms::featureDefinitions(MTandem_obj$data))
+```{r}
+MTandem_obj$apply_gap_filling(cores = 10)
+
+xcms::hasFilledChromPeaks(MTandem_obj$data)
+```
+
+# Stat Analysis
+
+```{r}
+MTandem_obj$extract_abundance_table()
+MTandem_obj$filter_and_normalize(min_perc_samples = 100,
+                                 filter_method = 'iqr',
+                                 perc_remove = 10,
+                                 norm_method = 'global',
+                                 log_transform = TRUE)
+
+MTandem_obj$calculate_ordination(method = 'nmds',
+                                 distance = 'bray')
+
+MTandem_obj$plot_ordination(group_by = 'treatment')
 
 
 ```
+
+
 
 
 

@@ -9,22 +9,22 @@
 mod_peak_picking_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    headerbox_factory(
-      title = 'Peak Picking Method',
-      status = 'primary',
-      width = 6,
-      content = tagList(
-        selectInput(ns('pp_method'), 'Select method to use:',
-                    c('centWave' = 'cw',
-                      'Matched Filter' = 'mf',
-                      'Massifquant' = 'mq'))
-      )
+    fluidRow(
+      headerbox_factory(
+        title = 'Peak Picking Method',
+        status = 'primary',
+        width = 6,
+        content = tagList(
+          selectInput(ns('pp_method'), 'Select method to use:',
+                      c('centWave' = 'cw',
+                        'Matched Filter' = 'mf',
+                        'Massifquant' = 'mq'))
+        )
+      ),
+
+      # Parameters for selected PP method
+      uiOutput(ns('pp_params'))
     ),
-
-    # Parameters for selected PP method
-    uiOutput(ns('pp_params')),
-
-
     # Resulst
     fluidRow(
       uiOutput(ns('pp_selected_params')),
@@ -243,7 +243,8 @@ mod_peak_picking_server <- function(id, MTandem_obj){
         id = 'pp_res_box',
         content = tagList(
           fluidRow(
-            col_12(tableOutput(ns('chrompeaks_table')))
+            col_12(tableOutput(ns('chrompeaks_table')),
+                   uiOutput(ns('has_peaks')))
           )
         )
       )
@@ -307,13 +308,14 @@ mod_peak_picking_server <- function(id, MTandem_obj){
       params_table()
     },
     striped = TRUE,
-    bordered = TRUE
+    bordered = TRUE,
+    width = '100%'
     ) %>%
       bindEvent(input$pick)
 
     # Applying peak picking and counting detected peaks ----
 
-    chrompeaks_table <- reactive({
+    has_peaks <- reactive({
       req(params_table())
       waiter_pp$show()
       notid <- showNotification('Applying peak picking...',
@@ -347,32 +349,43 @@ mod_peak_picking_server <- function(id, MTandem_obj){
       waiter_pp$hide()
 
 
-      xcms::chromPeaks(MTandem_obj$data) %>%
-        tidyr::as_tibble() %>%
-        dplyr::group_by(sample) %>%
-        dplyr::count() %>%
-        cbind(SampleID = xcms::phenoData(MTandem_obj$data)@data$SampleID) %>%
-        dplyr::ungroup() %>%
-        dplyr::select(SampleID, Num_peaks = n)
+      xcms::hasChromPeaks(MTandem_obj$data)
     })
 
-    output$chrompeaks_table <- renderTable({
-      chrompeaks_table()
-    },
-    striped = TRUE,
-    bordered = TRUE
-    ) %>%
+    observe({
+      req(has_peaks())
+      output$chrompeaks_table <- renderTable({
+        xcms::chromPeaks(MTandem_obj$data) %>%
+          tidyr::as_tibble() %>%
+          dplyr::group_by(sample) %>%
+          dplyr::count() %>%
+          cbind(SampleID = xcms::phenoData(MTandem_obj$data)@data$SampleID) %>%
+          dplyr::ungroup() %>%
+          dplyr::select(SampleID, Num_peaks = n)
+      },
+      striped = TRUE,
+      bordered = TRUE,
+      width = '100%'
+      )
+    }) %>%
+      bindEvent(input$pick)
+
+    output$has_peaks <- renderUI({
+      if(has_peaks()){
+        colored_text('Peak picking finished successfully.', color = 'green')
+      } else {
+        colored_text('Error with Peak picking', color = 'red')
+      }
+    }) %>%
       bindEvent(input$pick)
 
     ## Button to move to next step ----
-    observe({
-      req(chrompeaks_table())
-      output$next_buttonPP <- renderUI({
 
-        if(xcms::hasChromPeaks(MTandem_obj$data)){
-          next_button(id = 'next_buttonPP')
-        }
-      })
+    output$next_buttonPP <- renderUI({
+
+      if(has_peaks()){
+        next_button(id = 'next_buttonPP')
+      }
     }) %>%
       bindEvent(input$pick)
 

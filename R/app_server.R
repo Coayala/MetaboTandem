@@ -44,42 +44,73 @@ app_server <- function(input, output, session) {
 
   ## Peak picking ----
   mod_peak_picking_server("peak_picking_1", MTandem_obj)
-  ### Next button logic in peak picking server
-  observeEvent(input$next_buttonPP ,{
-    updateTabItems(session, "sidebarID", "align")
-  })
   ### Back button logic in peak picking server
   observeEvent(input$back_buttonPP ,{
     updateTabItems(session, "sidebarID", "load_data")
   })
-
-  ## Alignment ----
-  mod_alignment_server("alignment_1", MTandem_obj)
   ### Next button logic in peak picking server
-  observeEvent(input$next_buttonAL ,{
-    updateTabItems(session, "sidebarID", "gap")
-  })
-  ### Back button logic in peak picking server
-  observeEvent(input$back_buttonAL ,{
-    updateTabItems(session, "sidebarID", "p_pick")
-  })
-
-  ## Gap Filling ----
-  mod_gap_filling_server("gap_filling_1", MTandem_obj)
-  ## Next button logic in peak picking server
-  observeEvent(input$next_buttonGF_no_gap ,{
-    updateTabItems(session, "sidebarID", "")
-  })
-  ### Back button logic in peak picking server
-  observeEvent(input$back_buttonGF ,{
+  observeEvent(input$next_buttonPP ,{
     updateTabItems(session, "sidebarID", "align")
   })
 
-  #
-  # #back button logic in gap filling
-  # observeEvent(input$back_buttonGF ,{
-  #   updateTabItems(session, "sidebarID", "align")
-  # })
+
+  ## Alignment ----
+  mod_alignment_server("alignment_1", MTandem_obj)
+  ### Back button logic in alignment server
+  observeEvent(input$back_buttonAL ,{
+    updateTabItems(session, "sidebarID", "p_pick")
+  })
+  ### Next button logic in alignment server
+  observeEvent(input$next_buttonAL ,{
+    updateTabItems(session, "sidebarID", "gap")
+  })
+
+
+  ## Gap Filling ----
+  mod_gap_filling_server("gap_filling_1", MTandem_obj)
+  ### Back button logic in gap filling server
+  observeEvent(input$back_buttonGF ,{
+    updateTabItems(session, "sidebarID", "align")
+  })
+  ### Go to statistical analysis in gap filling server
+  observeEvent(input$GF_stats,{
+    if(is.null(MTandem_obj$abundance_table)){
+      MTandem_obj$extract_abundance_table()
+    }
+    updateTabItems(session, "sidebarID", "stats_setup")
+  })
+  ### Go to annotation in gap filling server
+  observeEvent(input$GF_annot,{
+    updateTabItems(session, "sidebarID", "")
+  })
+
+
+  # Statistical Analysis - Setup ----
+  mod_stats_setup_server("stats_setup_1", MTandem_obj)
+  ### Back button statistical setup
+  observeEvent(input$back_buttonSS ,{
+    updateTabItems(session, "sidebarID", "gap")
+  })
+  ### Go to statistical analysis in gap filling server
+  observeEvent(input$SS_multi,{
+    updateTabItems(session, "sidebarID", "stats_multi")
+  })
+  ### Go to annotation in gap filling server
+  observeEvent(input$SS_univ,{
+    updateTabItems(session, "sidebarID", "stats_univ")
+  })
+
+  # Statistical Analysis - Multivariate ----
+  mod_stats_multi_server("stats_multi_1", MTandem_obj)
+  ### Back button statistical setup
+  observeEvent(input$back_buttonSM ,{
+    updateTabItems(session, "sidebarID", "stats_setup")
+  })
+  ### Go to statistical analysis in gap filling server
+  observeEvent(input$SM_univ,{
+    updateTabItems(session, "sidebarID", "stats_univ")
+  })
+
   #
   #
   # #go_to_AnnotationLogic

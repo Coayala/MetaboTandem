@@ -6,8 +6,11 @@
 MetaboTandem <- R6::R6Class(
   classname = 'MetaboTandem',
   public = list(
-    metadata = NA,
-    data = NA,
+    metadata = NULL,
+    data = NULL,
+    abundance_table = NULL,
+    norm_abundance_table = NULL,
+    ordination = NULL,
     load_metadata = function(metadata_file){
       self$metadata <- load_metadata(metadata_file)
       invisible(self)
@@ -90,6 +93,73 @@ MetaboTandem <- R6::R6Class(
                finally = {
                  invisible(self)
                })
+    },
+    apply_gap_filling = function(cores = 1){
+      tryCatch({self$data = apply_gap_filling(self$data,
+                                              cores = cores)},
+               error = function(e){
+                 message('Error:\n', e)
+               },
+               finally = {
+                 invisible(self)
+               })
+    },
+    extract_abundance_table = function(){
+      self$abundance_table <- extract_abundance_table(self$data)
+      invisible(self)
+    },
+    filter_and_normalize = function(min_perc_samples,
+                                    filter_method, perc_remove,
+                                    norm_method, log_transform){
+
+      df <- apply_prevalence_filtering(
+        self$abundance_table,
+        min_perc_samples = min_perc_samples
+      )
+
+      df <- apply_variance_filtering(
+        df,
+        filter_method = filter_method,
+        perc_remove = perc_remove
+      )
+
+      self$norm_abundance_table <- apply_normalization(
+        df,
+        norm_method = norm_method,
+        log_transform = log_transform
+      )
+
+      invisible(self)
+
+    },
+    calculate_ordination = function(method,
+                                    distance = NULL,
+                                    group = NULL){
+      self$ordination <- calculate_ordination(abun_table = self$norm_abundance_table,
+                                              method,
+                                              distance = distance,
+                                              group = group)
+
+      invisible(self)
+    },
+    plot_ordination = function(group_by,
+                               add_sample_names = FALSE,
+                               add_variables = FALSE,
+                               add_ellipse = FALSE,
+                               color_vector = NULL,
+                               plot = TRUE){
+      plot <- plot_ordination(ord_object = self$ordination,
+                              metadata = self$metadata,
+                              abundances = self$norm_abundance_table,
+                              group_by,
+                              add_sample_names,
+                              add_variables,
+                              add_ellipse,
+                              color_vector,
+                              plot)
+
+      return(plot)
     }
+
   )
 )
