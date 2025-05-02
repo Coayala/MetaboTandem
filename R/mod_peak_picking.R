@@ -359,7 +359,7 @@ mod_peak_picking_server <- function(id, MTandem_obj){
           tidyr::as_tibble() %>%
           dplyr::group_by(sample) %>%
           dplyr::count() %>%
-          cbind(SampleID = xcms::phenoData(MTandem_obj$data)@data$SampleID) %>%
+          cbind(SampleID = MsExperiment::sampleData(MTandem_obj$data)$SampleID) %>%
           dplyr::ungroup() %>%
           dplyr::select(SampleID, Num_peaks = n)
       },

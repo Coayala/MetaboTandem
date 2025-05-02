@@ -46,16 +46,16 @@ This README has been compiled on the
 Sys.time()
 ```
 
-Here are the tests results and package coverage:
+<!-- Here are the tests results and package coverage: -->
 
-```{r, error = TRUE}
-devtools::check(quiet = TRUE)
-```
+<!-- ```{r, error = TRUE} -->
+<!-- devtools::check(quiet = TRUE) -->
+<!-- ``` -->
 
-```{r echo = FALSE}
-unloadNamespace("MetaboTandem")
-```
+<!-- ```{r echo = FALSE} -->
+<!-- unloadNamespace("MetaboTandem") -->
+<!-- ``` -->
 
-```{r, error = TRUE}
-covr::package_coverage()
-```
+<!-- ```{r, error = TRUE} -->
+<!-- covr::package_coverage() -->
+<!-- ``` -->

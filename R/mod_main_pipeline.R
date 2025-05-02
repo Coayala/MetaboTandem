@@ -44,8 +44,8 @@ mod_main_pipeline_ui <- function(id) {
                  menuSubItem('Alignment & Correspondence',
                              tabName = 'align',
                              icon = icon('align-center')),
-                 menuSubItem('Gap Filling',
-                             tabName = 'gap',
+                 menuSubItem('(Optional) Post processing',
+                             tabName = 'post_proc',
                              icon = icon('fill')),
                  startExpanded = TRUE),
         menuItem('Annotation',
@@ -54,9 +54,9 @@ mod_main_pipeline_ui <- function(id) {
                  menuSubItem('Public or custom databases',
                              tabName = 'dbs_annot',
                              icon = icon('database')),
-                 menuSubItem('Using SIRIUS',
-                             tabName = 'sirius_annot',
-                             icon = icon('computer')),
+                 # menuSubItem('Using SIRIUS',
+                 #             tabName = 'sirius_annot',
+                 #             icon = icon('computer')),
                  startExpanded = TRUE),
         menuItem('Statistical Analysis',
                  tabName = 'stat',
@@ -95,6 +95,11 @@ mod_main_pipeline_ui <- function(id) {
       }
 
     "))),
+      tags$head(tags$style(type = "text/css", paste0(".vscomp-dropbox {
+                                                        position: absolute !important;
+                                                        bottom: auto !important;
+                                                        top: 100% !important;
+                                                     }}"))),
       tabItems(
 
         # Load data tab
@@ -115,20 +120,20 @@ mod_main_pipeline_ui <- function(id) {
                 h1('Spectra alignment'),
                 mod_alignment_ui("alignment_1")
         ),
-        tabItem(tabName = 'gap',
-                h1('Gap Filling'),
-                mod_gap_filling_ui("gap_filling_1")
+        tabItem(tabName = 'post_proc',
+                h1('Post processing tools'),
+                mod_postprocessing_ui("postprocessing_1")
         ),
 
         ## Annotation module
         tabItem(tabName = 'dbs_annot',
-                h1('Annotation using custom or public databases')
-                # dbAnnotationUI('annot_dbs')
+                h1('Metabolite annotation'),
+                mod_annotation_ui("annotation_1")
         ),
-        tabItem(tabName = 'sirius_annot',
-                h1('Annotation using SIRIUS predictions')
-                # siriusAnnotationUI('annot_sirius')
-        ),
+        # tabItem(tabName = 'sirius_annot',
+        #         h1('Annotation using SIRIUS predictions')
+        #         # siriusAnnotationUI('annot_sirius')
+        # ),
 
         ## Statistical analysis
         tabItem(tabName = 'stats_setup',

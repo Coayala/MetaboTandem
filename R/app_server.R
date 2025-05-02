@@ -7,6 +7,9 @@
 app_server <- function(input, output, session) {
   # Your application server logic
 
+  waiter_app <- waiter::Waiter$new(html = waiter::spin_hexdots(),
+                                   color = waiter::transparent(.1))
+
   # Initializing the app in the home screen
   shinyjs::show('home')
 
@@ -62,14 +65,14 @@ app_server <- function(input, output, session) {
   })
   ### Next button logic in alignment server
   observeEvent(input$next_buttonAL ,{
-    updateTabItems(session, "sidebarID", "gap")
+    updateTabItems(session, "sidebarID", "post_proc")
   })
 
 
   ## Gap Filling ----
-  mod_gap_filling_server("gap_filling_1", MTandem_obj)
+  mod_postprocessing_server("postprocessing_1", MTandem_obj)
   ### Back button logic in gap filling server
-  observeEvent(input$back_buttonGF ,{
+  observeEvent(input$back_buttonPOST ,{
     updateTabItems(session, "sidebarID", "align")
   })
   ### Go to statistical analysis in gap filling server
@@ -81,7 +84,19 @@ app_server <- function(input, output, session) {
   })
   ### Go to annotation in gap filling server
   observeEvent(input$GF_annot,{
-    updateTabItems(session, "sidebarID", "")
+
+    waiter_app$show()
+    if(is.null(MTandem_obj$feature_spectra)){
+      MTandem_obj$extract_feature_spectra()
+    }
+    if(is.null(MTandem_obj$feature_definitions)){
+      MTandem_obj$extract_feature_definitions()
+    }
+    if(is.null(MTandem_obj$feature_chromatograms)){
+      MTandem_obj$extract_feature_chromatograms()
+    }
+    waiter_app$hide()
+    updateTabItems(session, "sidebarID", "dbs_annot")
   })
 
 
@@ -89,15 +104,26 @@ app_server <- function(input, output, session) {
   mod_stats_setup_server("stats_setup_1", MTandem_obj)
   ### Back button statistical setup
   observeEvent(input$back_buttonSS ,{
-    updateTabItems(session, "sidebarID", "gap")
+    updateTabItems(session, "sidebarID", "post_proc")
   })
-  ### Go to statistical analysis in gap filling server
+  ### Go to status multivariate after setup
   observeEvent(input$SS_multi,{
     updateTabItems(session, "sidebarID", "stats_multi")
   })
-  ### Go to annotation in gap filling server
+  ### Go to status univariate after setup
   observeEvent(input$SS_univ,{
     updateTabItems(session, "sidebarID", "stats_univ")
+  })
+
+  # Statistical Analysis - Univariate ----
+  mod_stats_univ_server("stats_univ_1", MTandem_obj)
+  ### Back button statistical setup
+  observeEvent(input$back_buttonSU ,{
+    updateTabItems(session, "sidebarID", "stats_setup")
+  })
+  ### Go to statistical analysis in gap filling server
+  observeEvent(input$SU_multi,{
+    updateTabItems(session, "sidebarID", "stats_multi")
   })
 
   # Statistical Analysis - Multivariate ----
@@ -111,9 +137,17 @@ app_server <- function(input, output, session) {
     updateTabItems(session, "sidebarID", "stats_univ")
   })
 
-  #
-  #
-  # #go_to_AnnotationLogic
+  # Annotations logic ----
+  mod_annotation_server("annotation_1", MTandem_obj)
+  ### Back button tp gap filling
+  observeEvent(input$back_buttonAN ,{
+    updateTabItems(session, "sidebarID", "post_proc")
+  })
+
+
+  #Stand_alone annotation logic ----
+  mod_annotation_server("solo_annotation_1", solo = TRUE)
+
   #
   # observeEvent(input$Go_to_Annotation ,{
   #   updateTabItems(session, "sidebarID", "dbs_annot")

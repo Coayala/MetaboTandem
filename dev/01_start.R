@@ -57,6 +57,10 @@ golem::use_recommended_tests()
 ## Recommended deps
 golem::use_recommended_deps()
 
+##  Site ----
+usethis::use_vignette("example")
+usethis::use_pkgdown_github_pages()
+
 ## Favicon ----
 # If you want to change the favicon (default is golem's one)
 golem::use_favicon('inst/app/www/hex-MetaboTandem.ico') # path = "path/to/ico". Can be an online file.

@@ -1,0 +1,325 @@
+---
+title: "Testing main pipeline"
+author: "Christian Ayala Ortiz"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Loading scripts
+
+```{r}
+devtools::load_all()
+```
+
+# Load data
+
+```{r}
+tictoc::tic.clearlog()
+tictoc::tic('Total time')
+tictoc::tic('Load data')
+metadata <- readr::read_csv('test_data/metadata_papers.csv') %>% 
+  dplyr::mutate(treat_time = ifelse(time != 'T0', 
+                                    glue::glue('{treatment}_{time}'), treatment))
+
+datadir <- 'Z:/PhD_stuff/arid_lcms_data/Arid_LC_MS_RAW_2-21-22/VEFZ-4852531/RP/RP_mzML_centroided/'
+
+data <- load_spectra_data(datadir,
+                          metadata)
+
+num_spectra_per_sample <- table(MsExperiment::spectraSampleIndex(data)) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(SampleID = MsExperiment::sampleData(data)$SampleID) %>% 
+  dplyr::select(SampleID, `Num. spectra` = Freq)
+
+num_spectra_per_sample
+tictoc::toc(log = TRUE)
+```
+
+# Peak picking
+
+```{r}
+tictoc::tic('Peak picking')
+data <- apply_peak_picking(data,
+                           method = 'cw',
+                           ppm = 1.5,
+                           p_width = c(2, 20),
+                           snt = 3,
+                           noise = 1e5,
+                           prefilter = c(1, 1e4),
+                           mz_diff = -0.001,
+                           cores = 1)
+
+data <- apply_peak_refinement(data)
+
+xcms::chromPeaks(data) %>% 
+  tidyr::as_tibble() %>% 
+  dplyr::group_by(sample) %>% 
+  dplyr::count() %>% 
+  cbind(SampleID = metadata) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(SampleID, Num_peaks = n)
+
+tictoc::toc(log = TRUE)
+```
+
+# Alignment
+
+```{r}
+tictoc::tic('Alignment and correspondence')
+data <- apply_alignment(data,
+                        metadata,
+                        method = 'ow',
+                        bin_size = 1,
+                        distance_function = 'cor_opt')
+
+treatment_colors <- setNames(ggpubr::get_palette('Dark2',
+                                                 length(unique(metadata$treatment))),
+                             nm = unique(metadata$treatment))
+
+col_vector <- treatment_colors[metadata$treatment]
+
+xcms::plotAdjustedRtime(data, col = col_vector, lwd = 1.5, cex = .7)
+legend('topleft', legend = names(treatment_colors), col = treatment_colors,
+       lty = rep(1, length(treatment_colors)), cex = .8, 
+       lwd = rep(2, length(treatment_colors)))
+
+
+data <- apply_correspondence(data,
+                             metadata, 
+                             method = 'pd',
+                             group_by = 'treatment')
+tictoc::toc(log = TRUE)
+```
+
+# Gap Filling
+
+```{r}
+tictoc::tic('Gap filling')
+data <- apply_gap_filling(data,
+                          cores = 1)
+
+xcms::hasFilledChromPeaks(data)
+
+feature_table <- extract_feature_definitions(data)
+tictoc::toc(log = TRUE)
+```
+
+# Cleaning with MetaClean
+
+```{r}
+tictoc::tic('Cleaning peaks')
+data <- apply_cleaning(data,
+                       group_by = 'treatment',
+                       model_file = 'test_data/metaclean_model.rds')
+
+tictoc::toc(log = TRUE)
+```
+
+# Annotation
+
+## Extracting feature definitions and spectra
+
+```{r}
+tictoc::tic('Annotation')
+spectra <- extract_feature_spectra(data,
+                                   rm_low_int = FALSE,
+                                   min_peaks = 0)
+
+feature_table <- extract_feature_definitions(data)
+```
+
+## Annotation
+
+```{r}
+annot_tables <- get_annotation_tables(feature_table = feature_table,
+                                      feature_spectra = spectra,
+                                      selected_dbs = c('massbank', 'mona', 'hmdb_exp',
+                                                       'hmdb_pred', 'gnps'),
+                                      adducts = c("[M+H]+"),
+                                      tolerance = 0.005,
+                                      ppm = 5,
+                                      req_precursor = TRUE,
+                                      distance_thres = 0.5)
+```
+
+### Merging annots
+
+```{r}
+merge_annot <- merge_annotation_tables(annot_tables$annot_tables,
+                                       feature_table = feature_table)
+
+tictoc::toc(log = TRUE)
+```
+
+### Compound classes
+
+```{r}
+tictoc::tic('Molecular Classification')
+molclass_table <- get_molecular_class(merge_annot)
+
+molclass_final <- add_canopus(merge_annot,
+                              molclass_table,
+                              'test_data/sirius_summary/canopus_formula_summary.tsv')
+
+tictoc::toc(log = TRUE)
+```
+
+
+# Stat Analysis
+
+```{r}
+tictoc::tic('Statistical analysis')
+abundance_table <- extract_abundance_table(data)
+
+abundance_table_filt <- apply_prevalence_filtering(abun_table = abundance_table,
+                                                   min_perc_samples = 80) %>% 
+  apply_variance_filtering(filter_method = 'mad',
+                           perc_remove = 10) 
+
+norm_table <- abundance_table_filt %>% 
+  apply_normalization(norm_method = 'global',
+                      log_transform = TRUE)
+
+colors <- c('purple4', 
+            ggpubr::get_palette('YlOrRd', 9)[c(3, 5, 7)],
+            ggpubr::get_palette('Blues', 6)[c(2, 4, 6)])
+
+names(colors) <- sort(unique(metadata$treat_time))
+
+clustering <- calculate_clustering(norm_table,
+                                   metadata,
+                                   color_by = 'treat_time',
+                                   distance = 'manhattan',
+                                   add_kmeans = TRUE,
+                                   k = 3,
+                                   color_vector = colors)
+
+clustering
+
+ordination <- calculate_ordination(norm_table,
+                                   method = 'pcoa',
+                                   distance = 'manhattan')
+
+ord_plot <- plot_ordination(ordination,
+                            metadata,
+                            group_by = 'treat_time',
+                            add_ellipse = TRUE,
+                            color_vector = colors)
+
+ord_plot
+
+permanova_res <- calculate_permanova(norm_table,
+                                     metadata,
+                                     vars = c('treatment', 'time'),
+                                     assess = 'terms')
+
+permanova_res
+```
+
+# Univariate Stats
+
+## Comparison between treatments in general
+
+```{r}
+
+diff_wp_nw <- differential_analysis(abundance_table_filt,
+                                    metadata,
+                                    group = 'treatment',
+                                    norm_method = 'global',
+                                    control_condition = 'No water',
+                                    treatment_condition = 'Water pulse')
+
+diff_class <- diff_wp_nw %>% 
+  dplyr::filter(pval_adj < 0.05) %>% 
+  dplyr::left_join(molclass_final, by = c('FeatureID' = 'feature_id')) %>% 
+  dplyr::mutate(analysis = 'diff_abun')
+
+
+diff_class_plot <- diff_class %>% 
+  dplyr::mutate(dir = ifelse(log2FC > 0, 'Upregulated', 'Downregulated')) %>% 
+  dplyr::mutate(dplyr::across(c(superclass, class), ~ifelse(is.na(.x), 'No class', .x))) %>% 
+  dplyr::group_by(superclass, dir) %>%
+  dplyr::count() %>%
+  dplyr::mutate(n = ifelse(dir == 'Downregulated', -n, n)) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(x = superclass,
+                                 y = n,
+                                 fill = dir),
+                    color = 'black') +
+  # ggplot2::facet_grid(.~superclass,
+  #                     scales = 'free',
+  #                     space = 'free') +
+  ggplot2::labs(y = 'Number of metabolites') +
+  ggplot2::scale_fill_manual(values = c('steelblue', 'indianred2')) +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                 axis.title.x = ggplot2::element_blank(),
+                 strip.text.x = ggplot2::element_text(angle = 90))
+
+diff_class_plot
+
+volcano <- plot_volcano(diff_wp_nw,
+                        pval_thres = 0.05,
+                        log2fc_thres = 1,
+                        use_adjusted_pval = TRUE)
+
+volcano
+
+models_rest <- fit_model(norm_table,
+                         metadata,
+                         model_type = 'lme',
+                         fix_vars = 'treatment',
+                         rand_vars = 'time')
+
+contrasts_df <- test_contrasts(models_rest,
+                               L = c(0, 1, -1))
+
+contrasts_sig <- contrasts_df %>% 
+  dplyr::filter(adj.p.value < 0.05) %>% 
+  dplyr::mutate(analysis = 'LME')
+
+
+contrasts_class <- contrasts_sig %>% 
+  dplyr::left_join(molclass_final, by = c('FeatureID' = 'feature_id'))
+
+cont_class_plot <- contrasts_class %>% 
+  dplyr::mutate(dplyr::across(c(superclass, class), ~ifelse(is.na(.x), 'No class', .x))) %>% 
+  dplyr::group_by(superclass) %>%
+  dplyr::count() %>%
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(x = superclass,
+                                 y = n),
+                    color = 'black',
+                    fill = 'orange2') +
+  # ggplot2::facet_grid(.~superclass,
+  #                     scales = 'free',
+  #                     space = 'free') +
+  ggplot2::labs(y = 'Number of metabolites') +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                 axis.title.x = ggplot2::element_blank(),
+                 strip.text.x = ggplot2::element_text(angle = 90))
+
+
+
+cont_class_plot
+
+sig_fig <- plot_model_sig_features(norm_table,
+                                   metadata,
+                                   contrasts_df,
+                                   color_by = 'treat_time',
+                                   cluster_samp = TRUE,
+                                   cluster_feat = TRUE,
+                                   color_vector = colors)
+
+sig_fig
+tictoc::toc(log = TRUE)
+tictoc::toc(log = TRUE)
+timelog <- tictoc::tic.log()
+
+timelog
+
+readr::write_rds(timelog, 'test_data/timelog_1core.rds')
+```
+
+

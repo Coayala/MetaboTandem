@@ -16,11 +16,24 @@ devtools::load_all()
 ```{r}
 MTandem_obj <- MetaboTandem$new()
 
-MTandem_obj$load_metadata(metadata_file = 'test_data/metadata.csv')
-MTandem_obj$metadata
-MTandem_obj$get_groups()
+MTandem_obj$load_metadata(metadata_file = 'test_data/metadata_QC.csv') 
 
-MTandem_obj$load_spectra_data('test_data/minimal_test/')
+# MTandem_obj$metadata <- MTandem_obj$metadata %>%
+#   dplyr::mutate(FileName = 'Z:/PhD_stuff/QC_lcmsms_centroided/RP_Pos_QC_Mix_Start.mzML')
+
+MTandem_obj$metadata
+
+# autotuner_obj <- start_autotuner(MTandem_obj$metadata,
+#                                  group = 'treatment',
+#                                  lag = 25,
+#                                  threshold = 3.1,
+#                                  influence = .1,
+#                                  plot = TRUE)
+# 
+# autotuner_params <- extract_autotuner(autotuner_obj,
+#                                       massThr = 0.005)
+
+MTandem_obj$load_spectra_data('Z:/PhD_stuff/QC_lcmsms_centroided/')
 
 MTandem_obj$centroid_check()
 ```
@@ -38,10 +51,10 @@ MTandem_obj$centroid_check()
 
 MTandem_obj$apply_peak_picking(method = 'cw',
                                ppm = 25,
-                               p_width = c(20, 50),
+                               p_width = c(1, 20),
                                snt = 3,
-                               noise = 1e6,
-                               prefilter = c(1, 100),
+                               noise = 1e7,
+                               prefilter = c(2, 1e4),
                                mz_diff = 0.001,
                                cores = 10)
 
@@ -56,7 +69,7 @@ xcms::chromPeaks(MTandem_obj$data) %>%
   tidyr::as_tibble() %>% 
   dplyr::group_by(sample) %>% 
   dplyr::count() %>% 
-  cbind(SampleID = xcms::phenoData(MTandem_obj$data)@data$SampleID) %>% 
+  cbind(SampleID = MsExperiment::sampleData(MTandem_obj$data)$SampleID) %>% 
   dplyr::ungroup() %>% 
   dplyr::select(SampleID, Num_peaks = n)
 
@@ -88,20 +101,80 @@ legend('topleft', legend = names(treatment_colors), col = treatment_colors,
        lwd = rep(2, length(treatment_colors)))
 
 
-MTandem_obj$apply_correspondence(method = 'np',
-                                 group_by = 'treatment',
-                                 mzvsrtbal = 10,
-                                 abs_mz = 0.2,
-                                 abs_rt = 15,
-                                 knn = 10)
+MTandem_obj$apply_correspondence(method = 'pd', group_by = 'treatment')
 ```
+
+```{r}
+MTandem_obj$extract_feature_definitions()
+
+ft <- MTandem_obj$feature_definitions %>% 
+  dplyr::select(feature_id, mz, rtime)
+
+qc_table <- readxl::read_xlsx('Z:/PhD_stuff/QC_lcmsms/QC_Mix_compounds_mod.xlsx') %>% 
+  dplyr::mutate(std_rt = `RP RT (min)` * 60) %>% 
+  dplyr::select(Compound, Formula, std_mz = `m/z pos`, std_rt)
+
+
+all <- dplyr::cross_join(ft, qc_table) %>% 
+  dplyr::mutate(ppm_error = (mz - std_mz)/std_mz * 1e6,
+                rt_error = rtime - std_rt) %>% 
+  dplyr::filter(abs(ppm_error) < 5,
+                abs(rt_error) < 6)
+
+MTandem_obj$extract_feature_spectra()
+
+MTandem_obj$feature_spectra
+
+MTandem_obj$get_annotation_tables()
+
+MTandem_obj$merge_annotation_tables()
+
+
+annot <- MTandem_obj$annotation_merged
+
+
+zz <- all %>% 
+  dplyr::left_join(annot, by = 'feature_id')
+
+
+res <- readr::read_csv('Z:/PhD_stuff/QC_lcmsms/res_annot.csv') %>% 
+  tidyr::pivot_longer(!c(Compound, Software), names_to = 'type', values_to = 'value')
+
+plot <- res %>% 
+  dplyr::mutate(type = factor(type, levels = c('Peak detected', 'Correctly annotated'))) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_tile(ggplot2::aes(x = type,
+                                  y = Compound,
+                                  fill = value),
+                     color = 'white',
+                     show.legend = FALSE) +
+  ggplot2::facet_wrap(~Software) +
+  ggplot2::scale_fill_manual(values = c('steelblue'), na.value = 'white') +
+  ggplot2::theme_bw()+
+  ggplot2::theme(panel.grid = ggplot2::element_blank())
+
+plot
+
+
+cd_res <- readxl::read_xlsx('Z:/PhD_stuff/QC_lcmsms/QC_cd.xlsx') %>% 
+  dplyr::select(Name, mz = `m/z`, rtime = `RT [min]` ) %>% 
+  dplyr::mutate(rtime = rtime * 60)
+
+
+all_cd <- dplyr::cross_join(cd_res, qc_table) %>% 
+  dplyr::mutate(ppm_error = (mz - std_mz)/std_mz * 1e6,
+                rt_error = rtime - std_rt) %>% 
+  dplyr::filter(abs(ppm_error) < 5,
+                abs(rt_error) < 6)
+```
+
 
 # Gap Filling
 
 ```{r}
-MTandem_obj$apply_gap_filling(cores = 10)
-
-xcms::hasFilledChromPeaks(MTandem_obj$data)
+# MTandem_obj$apply_gap_filling(cores = 10)
+# 
+# xcms::hasFilledChromPeaks(MTandem_obj$data)
 ```
 
 # Stat Analysis
@@ -119,11 +192,72 @@ MTandem_obj$calculate_ordination(method = 'nmds',
 
 MTandem_obj$plot_ordination(group_by = 'treatment')
 
+calculate_clustering(MTandem_obj$norm_abundance_table,
+                     MTandem_obj$metadata,
+                     color_by = 'treatment',
+                     k = 2,
+                     add_kmeans = TRUE)
 
 ```
 
+# Univariate Stats
+
+```{r}
+MTandem_obj$differential_analysis(group = 'treatment',
+                                  control_condition = 'CTR',
+                                  treatment_condition = 'WP')
+
+MTandem_obj$plot_volcano(pval_thres = 0.05,
+                         log2fc_thres = 1,
+                         use_adjusted_pval = FALSE)
+
+MTandem_obj$fit_models(model_type = 'lm',
+                       vars = 'moist')
+
+MTandem_obj$check_model()
+
+MTandem_obj$checked_models
+
+```
+
+## Contrasts
+
+```{r}
+MTandem_obj$test_contrasts(L = c(0, 1))
+MTandem_obj$contrasts_results
+
+MTandem_obj$plot_model_sig_features(color_by = 'treatment',
+                                    cluster_samp = TRUE,
+                                    cluster_feat = TRUE)
+
+```
+
+# Annotation
+
+## Extracting feature definitions and spectra
+
+```{r}
+MTandem_obj$extract_feature_definitions()
+
+MTandem_obj$feature_definitions
+
+MTandem_obj$extract_feature_spectra()
+
+MTandem_obj$feature_spectra
+```
+
+## Annotate MS1
+
+```{r}
+
+MTandem_obj$get_annotation_tables()
+
+MTandem_obj$merge_annotation_tables()
 
 
+plot_mirror(MTandem_obj$annotation_tables$ms2_matches,
+            MTandem_obj$annotation_merged,
+            feature_id =  'FT0168')
 
 
-
+```

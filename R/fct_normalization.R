@@ -52,7 +52,7 @@ global_norm <- function(abun_table, transform_data = TRUE){
   colnames(norm.abun_table) <- colnames(abun_table)
   rownames(norm.abun_table) <- rownames(abun_table)
   if(transform_data == TRUE){
-    lambda <- min(abun_table)
+    lambda <- min(abun_table[abun_table != 0])
     norm.abun_table <- log10(abun_table + sqrt(abun_table^2 + lambda))
   }
 
@@ -74,7 +74,7 @@ median_norm <- function(abun_table, transform_data = TRUE){
   colnames(norm.abun_table) <- colnames(abun_table)
   rownames(norm.abun_table) <- rownames(abun_table)
   if(transform_data == TRUE){
-    lambda <- min(abun_table)
+    lambda <- min(abun_table[abun_table != 0])
     norm.abun_table <- log10(abun_table + sqrt(abun_table^2 + lambda))
   }
   return(norm.abun_table)
@@ -94,7 +94,7 @@ mean_norm <- function(abun_table, transform_data = TRUE){
   colnames(norm.abun_table) <- colnames(abun_table)
   rownames(norm.abun_table) <- rownames(abun_table)
   if(transform_data == TRUE){
-    lambda <- min(abun_table)
+    lambda <- min(abun_table[abun_table != 0])
     norm.abun_table <- log10(abun_table + sqrt(abun_table^2 + lambda))
   }
   return(norm.abun_table)
@@ -132,7 +132,7 @@ max_norm <- function(abun_table, transform_data = TRUE){
   colnames(norm.abun_table) <- colnames(abun_table)
   rownames(norm.abun_table) <- rownames(abun_table)
   if(transform_data == TRUE){
-    lambda <- min(abun_table)
+    lambda <- min(abun_table[abun_table != 0])
     norm.abun_table <- log10(abun_table + sqrt(abun_table^2 + lambda))
   }
   return(norm.abun_table)

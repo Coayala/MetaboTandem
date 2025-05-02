@@ -446,12 +446,12 @@ mod_alignment_server <- function(id, MTandem_obj){
         group_colors <- setNames(
           ggpubr::get_palette(
             palette = 'Dark2',
-            length(unique(MTandem_obj$data@phenoData@data[[input$cor_group_by]]))
+            length(unique(MTandem_obj$data@sampleData[[input$cor_group_by]]))
           ),
-          nm = unique(MTandem_obj$data@phenoData@data[[input$cor_group_by]])
+          nm = unique(MTandem_obj$data@sampleData[[input$cor_group_by]])
         )
 
-        color_vector <- group_colors[MTandem_obj$data@phenoData@data[[input$cor_group_by]]]
+        color_vector <- group_colors[MTandem_obj$data@sampleData[[input$cor_group_by]]]
 
         xcms::plotAdjustedRtime(MTandem_obj$data, lwd = 3, cex = .7,
                                 col = color_vector)

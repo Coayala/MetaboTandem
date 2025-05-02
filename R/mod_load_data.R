@@ -68,8 +68,11 @@ mod_load_data_server <- function(id, MTandem_obj){
         MTandem_obj$load_metadata(input$metadata_file$datapath)
         MTandem_obj$metadata
       },
+      rownames = FALSE,
       options = list(scrollX = TRUE,
-                     dom = 'ltip')
+                     scrollY = TRUE,
+                     dom = 'ti',
+                     lineHeight = "50%")
     ) %>%
       bindEvent(input$metadata_file)
 
@@ -84,6 +87,7 @@ mod_load_data_server <- function(id, MTandem_obj){
           shinyDirButton(ns('datadir'), 'Choose data folder',
                          'Please select folder with data',
                          FALSE),
+          br(), br(),
           uiOutput(ns('other_spec_params'))
         )
       )
@@ -91,13 +95,15 @@ mod_load_data_server <- function(id, MTandem_obj){
       bindEvent(input$metadata_file)
 
     # Get directory for files ----
-    shinyDirChoose(input, 'datadir', roots = c('wd' = '.'), session = session)
+    shinyDirChoose(input, 'datadir', roots = c('wd' = getwd(), 'root' = '/'),
+                   session = session, defaultRoot = 'wd')
 
     output$other_spec_params <- renderUI({
       tagList(
         fluidRow(
-          col_12(htmlOutput(ns('sel_directory'))),
-          col_12(selectInput(ns('format'), 'Data format', c('mzML', 'mzXML')))
+          col_12(verbatimTextOutput(ns('sel_directory')),
+                 br(),
+                 selectInput(ns('format'), 'Data format', c('mzML', 'mzXML')))
         ),
         fluidRow(
           column(6,
@@ -113,7 +119,7 @@ mod_load_data_server <- function(id, MTandem_obj){
 
     # Print selected directory ----
     output$sel_directory <- renderText(
-      paste(strong('Directory selected:'), '<br/>', parseDirPath(roots = c('wd' = '.'), input$datadir))
+      paste(parseDirPath(roots = c('wd' = getwd(), 'root' = '/'), input$datadir))
     ) %>%
       bindEvent(input$datadir)
 
@@ -124,13 +130,16 @@ mod_load_data_server <- function(id, MTandem_obj){
       notid <- showNotification('Reading data...',
                                 duration = NULL, closeButton = FALSE)
       on.exit(removeNotification(notid), add = TRUE)
-      MTandem_obj$load_spectra_data(datadir = parseDirPath(roots = c('wd' = '.'), input$datadir),
-                                    format = input$format)
+      MTandem_obj$load_spectra_data(
+        datadir = parseDirPath(roots = c('wd' = getwd(), 'root' = '/'),
+                               input$datadir),
+        format = input$format
+      )
 
       MTandem_obj$centroid_check()
       w_spectra_load$hide()
 
-      if(is(MTandem_obj$data, 'OnDiskMSnExp')){
+      if(is(MTandem_obj$data, 'MsExperiment')){
         colored_text('Data loaded correctly', color = 'green')
 
       } else {
@@ -164,9 +173,9 @@ mod_load_data_server <- function(id, MTandem_obj){
     observe({
       req(is_loaded())
       output$spectra_table <- renderTable({
-        table(xcms::fromFile(MTandem_obj$data)) %>%
+        table(MsExperiment::spectraSampleIndex(MTandem_obj$data)) %>%
           as.data.frame() %>%
-          dplyr::mutate(SampleID = xcms::phenoData(MTandem_obj$data)@data$SampleID) %>%
+          dplyr::mutate(SampleID = MsExperiment::sampleData(MTandem_obj$data)$SampleID) %>%
           dplyr::select(SampleID, `Num. spectra` = Freq)
       },
       striped = TRUE,
@@ -179,7 +188,7 @@ mod_load_data_server <- function(id, MTandem_obj){
     observe({
       req(is_loaded())
       output$nxt_bttn <- renderUI({
-        if(is(MTandem_obj$data, 'OnDiskMSnExp')){
+        if(is(MTandem_obj$data, 'MsExperiment')){
           next_button(id = 'next_buttonLD')
         }
       })

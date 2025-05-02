@@ -11,6 +11,16 @@ MetaboTandem <- R6::R6Class(
     abundance_table = NULL,
     norm_abundance_table = NULL,
     ordination = NULL,
+    diff_table = NULL,
+    fitted_models = NULL,
+    checked_models = NULL,
+    contrasts_results = NULL,
+    feature_definitions = NULL,
+    feature_spectra = NULL,
+    annotation_results = NULL,
+    annotation_merged = NULL,
+    annotation_classes = NULL,
+    feature_chromatograms = NULL,
     load_metadata = function(metadata_file){
       self$metadata <- load_metadata(metadata_file)
       invisible(self)
@@ -19,9 +29,8 @@ MetaboTandem <- R6::R6Class(
       colnames(self$metadata)[-which(colnames(self$metadata) == 'SampleID')]
     },
     load_spectra_data = function(datadir,
-                                 format = 'mzML',
-                                 mode = 'onDisk'){
-      tryCatch({self$data = load_spectra_data(datadir, self$metadata, format, mode)},
+                                 format = 'mzML'){
+      tryCatch({self$data = load_spectra_data(datadir, self$metadata, format)},
                error = function(e){
                  message('Error:\n', e)
                },
@@ -104,6 +113,18 @@ MetaboTandem <- R6::R6Class(
                  invisible(self)
                })
     },
+    apply_cleaning = function(group_by,
+                              model_file){
+      tryCatch({self$data = apply_cleaning(self$data,
+                                           group_by = group_by,
+                                           model_file = model_file)},
+               error = function(e){
+                 message('Error:\n', e)
+               },
+               finally = {
+                 invisible(self)
+               })
+    },
     extract_abundance_table = function(){
       self$abundance_table <- extract_abundance_table(self$data)
       invisible(self)
@@ -159,7 +180,174 @@ MetaboTandem <- R6::R6Class(
                               plot)
 
       return(plot)
-    }
+    },
+    calculate_permanova = function(vars,
+                                   distance,
+                                   assess = 'model',
+                                   use_interaction = FALSE,
+                                   strata = NULL){
+      calculate_permanova(self$norm_abundance_table,
+                          self$metadata,
+                          vars = vars,
+                          distance = distance,
+                          assess = assess,
+                          use_interaction = use_interaction,
+                          strata = strata)
+    },
+    calculate_clustering = function(distance = 'euclidean',
+                                    cluster_algorithm = 'ward.D2',
+                                    add_kmeans = FALSE,
+                                    k = 3,
+                                    color_by = NULL,
+                                    plot = TRUE,
+                                    color_vector = NULL){
+      calculate_clustering(self$norm_abundance_table,
+                           self$metadata,
+                           distance = distance,
+                           cluster_algorithm = cluster_algorithm,
+                           add_kmeans = add_kmeans,
+                           k = k,
+                           color_by = color_by,
+                           plot = plot,
+                           color_vector = color_vector)
+    },
+    differential_analysis = function(group,
+                                     control_condition,
+                                     treatment_condition){
+      self$diff_table <- differential_analysis(self$abundance_table,
+                                               self$metadata,
+                                               norm_method = 'median',
+                                               group = group,
+                                               control_condition = control_condition,
+                                               treatment_condition = treatment_condition)
+      invisible(self)
+    },
+    plot_volcano = function(pval_thres,
+                            log2fc_thres,
+                            use_adjusted_pval = FALSE){
+      plot_volcano(self$diff_table,
+                   pval_thres = pval_thres,
+                   log2fc_thres = log2fc_thres,
+                   use_adjusted_pval = use_adjusted_pval)
+    },
+    plot_da_sig_features = function(pval_thres,
+                                    log2fc_thres,
+                                    color_by,
+                                    use_adjusted_pval = FALSE,
+                                    cluster_feat = FALSE,
+                                    cluster_samp = FALSE,
+                                    color_vector = NULL){
+      plot_da_sig_features(self$norm_abundance_table,
+                           self$metadata,
+                           self$diff_table,
+                           pval_thres = pval_thres,
+                           log2fc_thres = log2fc_thres,
+                           color_by = color_by,
+                           use_adjusted_pval = use_adjusted_pval,
+                           cluster_feat = cluster_feat,
+                           cluster_samp = cluster_samp,
+                           color_vector = color_vector)
+    },
+    fit_models = function(model_type,
+                          vars = NULL,
+                          fix_vars = NULL,
+                          rand_vars = NULL){
 
+      self$fitted_models <- fit_model(self$norm_abundance_table,
+                                      self$metadata,
+                                      model_type = model_type,
+                                      vars = vars,
+                                      fix_vars = fix_vars,
+                                      rand_vars = rand_vars)
+
+      invisible(self)
+
+    },
+    check_model = function(){
+      self$checked_models <- check_model(self$fitted_models)
+
+      invisible(self)
+    },
+    test_contrasts = function(L){
+      self$contrasts_results <- test_contrasts(self$fitted_models,
+                                               L = L)
+      invisible(self)
+
+    },
+    plot_model_sig_features = function(color_by,
+                                       cluster_feat = FALSE,
+                                       cluster_samp = FALSE,
+                                       color_vector = NULL){
+      plot_model_sig_features(self$norm_abundance_table,
+                              self$metadata,
+                              self$contrasts_results,
+                              color_by = color_by,
+                              cluster_feat = cluster_feat,
+                              cluster_samp = cluster_samp,
+                              color_vector = color_vector)
+    },
+    extract_feature_definitions = function(){
+      self$feature_definitions <- extract_feature_definitions(self$data)
+
+      invisible(self)
+    },
+    extract_feature_spectra = function(rm_low_int = TRUE,
+                                       min_peaks = 3){
+
+      self$feature_spectra <- extract_feature_spectra(self$data,
+                                                      rm_low_int = rm_low_int,
+                                                      min_peaks = min_peaks)
+
+      invisible(self)
+    },
+    get_annotation_tables = function(selected_dbs = c('massbank',
+                                                      'mona',
+                                                      'hmdb_exp',
+                                                      'hmdb_pred',
+                                                      'gnps'),
+                                     adducts = c("[M+H]+"),
+                                     tolerance = 0.005,
+                                     ppm = 5,
+                                     req_precursor = TRUE,
+                                     distance_thres = 0.5,
+                                     candidates = 1){
+
+      self$annotation_results <- get_annotation_tables(self$feature_definitions,
+                                                       self$feature_spectra,
+                                                       selected_dbs = selected_dbs,
+                                                       adducts = adducts,
+                                                       tolerance = tolerance,
+                                                       ppm = ppm,
+                                                       req_precursor = req_precursor,
+                                                       distance_thres = distance_thres,
+                                                       candidates = candidates)
+
+      invisible(self)
+
+    },
+    merge_annotation_tables = function(candidates = 1){
+
+      self$annotation_merged <- merge_annotation_tables(self$annotation_results$annot_tables,
+                                                        self$feature_definitions,
+                                                        candidates = candidates)
+
+      invisible(self)
+    },
+    add_molecular_class = function(){
+      self$annotation_classes <- get_molecular_class(self$annotation_merged)
+
+      invisible(self)
+    },
+    extract_feature_chromatograms = function(){
+      self$feature_chromatograms <- extract_feature_chromatograms(self$data,
+                                                                  self$feature_definitions)
+
+      invisible(self)
+    },
+    plot_mirror = function(feature_id){
+      plot_mirror(self$annotation_results$ms2_matches,
+                  self$annotation_merged,
+                  feature_id = feature_id)
+    }
   )
 )

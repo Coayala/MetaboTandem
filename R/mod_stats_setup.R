@@ -29,6 +29,7 @@ mod_stats_setup_ui <- function(id) {
       title = HTML('Data Processing parameters'),
       status = 'primary',
       width = 12,
+      id = 'norm_params_box',
       content = tagList(
         fluidRow(
           col_6(
@@ -94,6 +95,11 @@ mod_stats_setup_server <- function(id, MTandem_obj){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
+    # Waiter
+    waiter_ss <- waiter::Waiter$new(id = ns('norm_params_box'),
+                                    html = waiter::spin_hexdots(),
+                                    color = waiter::transparent(.1))
+
     output$show_perc <- renderUI({
       if(input$filter_methods != 'none'){
         shinyWidgets::numericInputIcon(ns('perc_filter'),
@@ -117,11 +123,13 @@ mod_stats_setup_server <- function(id, MTandem_obj){
     })
 
     is_norm <- reactive({
+      waiter_ss$show()
       MTandem_obj$filter_and_normalize(min_perc_samples = input$prevalence,
                                        filter_method = input$filter_methods,
                                        perc_remove = input$perc_filter,
                                        norm_method = input$norm_methods,
                                        log_transform = input$log_transform)
+      waiter_ss$hide()
 
       !is.null(MTandem_obj$norm_abundance_table)
     })

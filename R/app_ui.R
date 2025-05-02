@@ -43,7 +43,7 @@ app_ui <- function(request) {
     # MGF annotation mode
     div(id = 'annotate_app',
         style = 'display:none',
-        # annotationappUI('solo_annotation')
+        mod_annotation_ui("solo_annotation_1")
     )
   )
 }

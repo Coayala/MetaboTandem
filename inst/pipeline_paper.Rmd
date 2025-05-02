@@ -1,0 +1,862 @@
+---
+title: "Testing main pipeline"
+author: "Christian Ayala Ortiz"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Loading scripts
+
+```{r}
+devtools::load_all()
+```
+
+# Load data
+
+```{r}
+
+metadata <- readr::read_csv('test_data/metadata_papers.csv') %>% 
+  dplyr::mutate(
+    FileName = glue::glue(
+      'Z:/PhD_stuff/arid_lcms_data/Arid_LC_MS_RAW_2-21-22/VEFZ-4852531/RP/RP_mzML_centroided/{SampleID}.mzML'
+    ),
+    treat_time = ifelse(time != 'T0', glue::glue('{treatment}_{time}'), treatment)
+  )
+
+# autotuner_obj <- start_autotuner(metadata,
+#                                  group = 'treatment',
+#                                  lag = 40,
+#                                  threshold = 3.1,
+#                                  influence = .1,
+#                                  plot = TRUE)
+# 
+# autotuner_params <- extract_autotuner(autotuner_obj,
+#                                       massThr = 0.005)
+# 
+# readr::write_csv(autotuner_params, 'test_data/autotuner.csv')
+
+autotuner_params <- readr::read_csv('test_data/autotuner.csv')
+autotuner_params
+
+
+datadir <- 'Z:/PhD_stuff/arid_lcms_data/Arid_LC_MS_RAW_2-21-22/VEFZ-4852531/RP/RP_mzML_centroided/'
+
+data <- load_spectra_data(datadir,
+                          metadata)
+
+num_spectra_per_sample <- table(MsExperiment::spectraSampleIndex(data)) %>% 
+  as.data.frame() %>% 
+  dplyr::mutate(SampleID = MsExperiment::sampleData(data)$SampleID) %>% 
+  dplyr::select(SampleID, `Num. spectra` = Freq)
+
+num_spectra_per_sample
+```
+
+# Peak picking
+
+```{r}
+data <- apply_peak_picking(data,
+                           method = 'cw',
+                           ppm = 1.5,
+                           p_width = c(2, 20),
+                           snt = 3,
+                           noise = 1e5,
+                           prefilter = c(1, 1e4),
+                           mz_diff = -0.001,
+                           cores = 5)
+
+data <- apply_peak_refinement(data)
+
+xcms::chromPeaks(data) %>% 
+  tidyr::as_tibble() %>% 
+  dplyr::group_by(sample) %>% 
+  dplyr::count() %>% 
+  cbind(SampleID = metadata) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(SampleID, Num_peaks = n)
+
+```
+
+# Alignment
+
+```{r}
+data <- apply_alignment(data,
+                        metadata,
+                        method = 'ow',
+                        bin_size = 1,
+                        distance_function = 'cor_opt')
+
+treatment_colors <- setNames(ggpubr::get_palette('Dark2',
+                                                 length(unique(metadata$treatment))),
+                             nm = unique(metadata$treatment))
+
+col_vector <- treatment_colors[metadata$treatment]
+
+xcms::plotAdjustedRtime(data, col = col_vector, lwd = 1.5, cex = .7)
+legend('topleft', legend = names(treatment_colors), col = treatment_colors,
+       lty = rep(1, length(treatment_colors)), cex = .8, 
+       lwd = rep(2, length(treatment_colors)))
+
+
+data <- apply_correspondence(data,
+                             metadata, 
+                             method = 'pd',
+                             group_by = 'treatment')
+```
+
+# Gap Filling
+
+```{r}
+data <- apply_gap_filling(data,
+                          cores = 5)
+
+xcms::hasFilledChromPeaks(data)
+
+feature_table <- extract_feature_definitions(data)
+```
+
+# Cleaning with MetaClean
+
+```{r}
+# Create xcmsSet
+
+ft_def <- xcms::featureDefinitions(data)
+
+xcms_set <- as(xcms::filterMsLevel(data, msLevel = 1), 'xcmsSet')
+xcms::sampclass(xcms_set) <- metadata$treatment
+
+xcms_fill <- xcms::fillPeaks(xcms_set)
+
+peak_group_names_available <- data.frame(
+  FeatureID = rownames(ft_def),
+  group_name = xcms::groupnames(xcms_set)
+) %>% 
+  dplyr::filter(group_name %in% xcms::groupnames(xcms_fill))
+# Select peaks and extract eics
+
+set.seed(123)
+sel_peaks <- sample(peak_group_names_available$FeatureID, 400) %>% 
+  stringr::str_remove('FT') %>% 
+  as.numeric
+
+chroms <- xcms::featureChromatograms(data,
+                                     features = feature_table$feature_id[sel_peaks],
+                                     filled = TRUE)
+keep <- logical(length(sel_peaks))
+for(i in seq_along(sel_peaks)){
+  keep[i] <- !MSnbase::isEmpty(chroms[i,])
+}
+
+dev_eic <- xcms::getEIC(xcms_set,
+                        groupidx = sel_peaks,
+                        rt = 'corrected')
+
+labels <- data.frame(feature_id = feature_table$feature_id[sel_peaks]) %>% 
+  dplyr::mutate(Label = NA)
+
+for(i in seq_along(sel_peaks)){
+  ft_id <- feature_table$feature_id[sel_peaks[i]]
+  xcms::plot(chroms[i,], 
+             main = ft_id, 
+             col = col_vector)
+  # legend('topleft', legend = names(treatment_colors), col = treatment_colors, 
+  #        lty = rep(1, length(treatment_colors)), cex = .8, 
+  #        lwd = rep(2, length(treatment_colors)))
+  
+  labels$Label[i] <- readline(
+    prompt = paste0(i, '. Enter G (Pass) or F (Fail): ')
+  )
+  while(!(labels$Label[i] %in% c('G', 'F'))){
+    labels$Label[i] <- readline(
+      prompt = 'ERROR: Re-Enter G (Pass) or F (Fail): ')
+  }
+  
+}
+
+labels_ready <- labels %>% 
+  dplyr::mutate(Label = ifelse(Label == 'G', 'Pass', 'Fail'))
+
+readr::write_csv(labels_ready, 'test_data/feature_labels_updated2.csv')
+
+eic_eval_dev <- MetaClean::getEvalObj(xs = dev_eic,
+                                      fill = xcms_fill)
+
+labels_dev <- labels_ready %>% 
+  dplyr::mutate(EICNo = eic_eval_dev@eicNos)
+
+# eic_eval_test <- MetaClean::getEvalObj(xs = test_eic,
+#                                        fill = xcms_fill)
+
+peak_qual_dev <- MetaClean::getPeakQualityMetrics(eicEvalData = eic_eval_dev,
+                                                  eicLabels_df = as.data.frame(labels_dev))
+
+peak_qual_filt <- peak_qual_dev %>% 
+  tidyr::drop_na()
+
+# peak_qual_test <- MetaClean::getPeakQualityMetrics(eicEvalData = eic_eval_test)
+
+# Train classifiers
+
+models <- list()
+
+for(mod in c('LogisticRegression', 'NaiveBayes', 'RandomForest', 'SVM_Linear', 
+             'AdaBoost', 'NeuralNetwork', 'ModelAveragedNeuralNet')){
+  
+  for(metric in c('M4', 'M7', 'M11')){
+    nn <- paste0(mod, '_', metric)
+    
+    print(nn)
+    
+    models[nn] <- MetaClean::runCrossValidation(trainData = peak_qual_filt,
+                                                k = 6,
+                                                repNum = 10,
+                                                rand.seed = 512,
+                                                models = mod,
+                                                metricSet = metric)
+    
+  }
+}
+
+# names(models) <- paste0(c('LogisticRegression', 'NaiveBayes', 'RandomForest', 'SVM_Linear', 
+#                           'AdaBoost', 'NeuralNetwork', 'ModelAveragedNeuralNet'), '_M11')
+
+evalMeasuresDF <- MetaClean::getEvaluationMeasures(models=models, k=5, repNum=10)
+
+barPlots <- MetaClean::getBarPlots(evalMeasuresDF, emNames="All")
+barPlots$M11$Pass_FScore
+barPlots$M11$Pass_Precision
+barPlots$M11$Pass_Recall
+
+barPlots$M7$Pass_FScore
+barPlots$M7$Pass_Precision
+barPlots$M7$Pass_Recall
+
+barPlots$M4$Pass_FScore
+barPlots$M4$Pass_Precision
+barPlots$M4$Pass_Recall
+
+cdPlots <- MetaClean::getCDPlots(evalMeasuresDF = evalMeasuresDF, 
+                                 emNames = c("Pass_FScore", "Fail_FScore", "Accuracy"),
+                                 compareBest = T)
+
+cdPlots$M11$plots$Accuracy
+cdPlots$M11$plots$Pass_FScore
+cdPlots$M11$plots$Fail_FScore
+cdPlots$M11$rank_matrices
+
+cdPlots$InterMet$rank_matrices
+
+# Training best model
+
+hyperparameters <- models$LogisticRegression_M11$pred %>% 
+  dplyr::select(-c(pred, obs, Fail, Pass, rowIndex, Resample)) %>% 
+  unique()
+
+metaclean_model <- MetaClean::trainClassifier(trainData = peak_qual_filt,
+                                              model = 'LogisticRegression',
+                                              metricSet = 'M11',
+                                              hyperparameters = hyperparameters)
+
+readr::write_rds(metaclean_model, 'test_data/metaclean_model.rds')
+## Apply to all data
+
+available_peaks <- stringr::str_remove(peak_group_names_available$FeatureID, 'FT') %>% 
+  as.numeric
+
+all_eic <- xcms::getEIC(xcms_set,
+                        groupidx = available_peaks,
+                        rt = 'corrected')
+
+all_eval <- MetaClean::getEvalObj(xs = all_eic,
+                                  fill = xcms_fill)
+
+fill_group <- xcms::groupnames(xcms_fill)
+
+all_peak_quality <- MetaClean::getPeakQualityMetrics(eicEvalData = all_eval) 
+
+fill_gnames <- fill_group[all_peak_quality$EICNo]
+
+all_peak_quality_filt <- all_peak_quality %>% 
+  dplyr::mutate(group_name = fill_gnames) %>% 
+  dplyr::left_join(peak_group_names_available) %>% 
+  tidyr::drop_na()
+
+
+all_predictions <- MetaClean::getPredicitons(model = metaclean_model,
+                                             testData = all_peak_quality_filt,
+                                             eicColumn = 'FeatureID')
+
+pass_metabolites <- all_predictions %>% 
+  dplyr::filter(Pred_Class == 'Pass') %>% 
+  dplyr::mutate(FeatureID = EIC)
+
+feature_table_filt <- feature_table %>% 
+  dplyr::filter(feature_id %in% pass_metabolites$FeatureID)
+
+
+```
+
+# Annotation
+
+## Extracting feature definitions and spectra
+
+```{r}
+filter_data <- xcms::filterFeatureDefinitions(data, features = pass_metabolites$FeatureID)
+
+spectra <- extract_feature_spectra(filter_data,
+                                   rm_low_int = FALSE,
+                                   min_peaks = 0)
+spectra_var_map <- c(feature_id = 'TITLE',
+                     MsBackendMgf::spectraVariableMapping(MsBackendMgf::MsBackendMgf()))
+
+
+Spectra::export(spectra, MsBackendMgf::MsBackendMgf(), 
+                file = 'test_data/metabotandem_paper.mgf',
+                mapping = spectra_var_map)
+
+
+init_ft <- xcms::featureDefinitions(data) %>% nrow()
+remaining_ft <- xcms::featureDefinitions(filter_data) %>% nrow()
+
+pp <- data.frame(Features = c('Pass', 'Removed'),
+                 n = c(remaining_ft, init_ft - remaining_ft)) %>% 
+  dplyr::mutate(perc = round(n / sum(n) * 100, 2),
+                label = paste0(perc, '%'),
+                label_y = cumsum(perc) - 0.5*perc) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(x = 1,
+                                 y = perc,
+                                 fill = rev(Features)),
+                    color = 'black') +
+  ggplot2::geom_text(ggplot2::aes(x = 1,
+                                  y = label_y,
+                                  label = label)) +
+  ggplot2::scale_fill_manual(values = c('darkgreen', 'gray80')) +
+  ggplot2::coord_polar('y') +
+  ggplot2::labs(fill = 'Features') +
+  ggplot2::theme_void() +
+  ggplot2::theme(legend.position = 'right')
+
+pp$data
+```
+
+## Annotation
+
+```{r}
+annot_tables <- get_annotation_tables(feature_table = feature_table_filt,
+                                      feature_spectra = spectra,
+                                      selected_dbs = c('massbank', 'mona', 'hmdb_exp',
+                                                       'hmdb_pred', 'gnps'),
+                                      adducts = c("[M+H]+"),
+                                      tolerance = 0.005,
+                                      ppm = 5,
+                                      req_precursor = TRUE,
+                                      distance_thres = 0.5)
+```
+
+### Merging annots
+
+```{r}
+merge_annot <- merge_annotation_tables(annot_tables,
+                                       feature_table = feature_table_filt)
+
+load('test_data/new_training_pd.RData')
+```
+
+### Compound classes
+
+```{r}
+inchikeys <- annot_final_merged %>% 
+  dplyr::select(target_inchikey) %>% 
+  tidyr::drop_na() %>%
+  dplyr::distinct() %>% 
+  dplyr::pull()
+
+class_list <- purrr::map(inchikeys, classyfireR::get_classification)
+
+names(class_list) <- inchikeys
+
+class_dfs <- purrr::imap(class_list, function(cl, ikey){
+  
+  if(!is.null(cl)){
+    df <- classyfireR::classification(cl) %>% 
+      dplyr::filter(Level %in% c('kingdom', 'superclass', 'class',
+                                 'subclass', 'level 5')) %>% 
+      dplyr::select(-CHEMONT) %>% 
+      dplyr::mutate(inchikey = ikey)
+  } else {
+    df <- data.frame(
+      Level = 'kingdom',
+      Classification = NA,
+      inchikey = ikey
+    )
+  }
+  
+  return(df)
+  
+})
+
+all_classes <- purrr::reduce(class_dfs, rbind) %>% 
+  tidyr::pivot_wider(names_from = 'Level', values_from = 'Classification') %>% 
+  dplyr::select(-kingdom) %>% 
+  tidyr::drop_na(superclass)
+
+canopus_classes <- readr::read_tsv('test_data/sirius_summary/canopus_formula_summary.tsv')
+
+canopus_formulas <- canopus_classes %>% 
+  dplyr::mutate(FeatureID = stringr::str_extract(mappingFeatureId, 'FT[0-9]+')) %>% 
+  dplyr::filter(adduct == '[M + H]+') %>% 
+  dplyr::select(FeatureID, canopus_formula = molecularFormula) 
+
+canopus_processed <- canopus_classes %>% 
+  dplyr::filter(adduct == '[M + H]+') %>% 
+  dplyr::mutate(FeatureID = stringr::str_extract(mappingFeatureId, 'FT[0-9]+')) %>% 
+  dplyr::select(FeatureID, target_formula = molecularFormula, 
+                superclass = `ClassyFire#superclass`, class = `ClassyFire#class`, 
+                subclass = `ClassyFire#subclass`, `level 5` = `ClassyFire#level 5`)
+
+# Checking canopus_results
+
+
+class_from_ms2 <- annot_final_merged %>% 
+  dplyr::filter(MS2_annotation) %>% 
+  dplyr::inner_join(all_classes, by = c('target_inchikey' = 'inchikey')) %>% 
+  dplyr::left_join(canopus_formulas, by = c('feature_id' = 'FeatureID')) %>% 
+  dplyr::mutate(
+    annotation_notes = dplyr::case_when(
+      target_formula == canopus_formula ~ 'Annotation based in MS2 spectral library. Match with SIRIUS predicted formula',
+      TRUE ~ 'Annotation based in MS2 spectral library'
+    ),
+    classification_notes = 'Classification based on Classyfire') %>% 
+  dplyr::select(-canopus_formula)
+
+
+class_from_ms2_canopus <- annot_final_merged %>%
+  dplyr::filter(MS2_annotation) %>% 
+  dplyr::filter(!(feature_id %in% class_from_ms2$feature_id)) %>% 
+  dplyr::left_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>% 
+  dplyr::mutate(
+    annotation_notes = dplyr::case_when(
+      !is.na(superclass) ~ 'Annotation based in MS2 spectral library. Match with SIRIUS predicted formula',
+      TRUE ~ 'Annotation based in MS2 spectral library'
+    ),
+    classification_notes = dplyr::case_when(
+      !is.na(superclass) ~ 'Classification based on CANOPUS',
+      TRUE ~ 'No classification'
+    ))
+
+class_from_ms1_canopus <- annot_final_merged %>%
+  dplyr::filter(!MS2_annotation,
+                !is.na(ms1_score)) %>% 
+  dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>% 
+  dplyr::inner_join(all_classes, by = c('target_inchikey' = 'inchikey', 'superclass',
+                                        'class', 'subclass', 'level 5')) %>% 
+  dplyr::mutate(annotation_notes = 'Annotation based on m/z matches. Match with SIRIUS predicted formula',
+                classification_notes = 'Classification based on CANOPUS')
+
+class_from_ms1 <- annot_final_merged %>%
+  dplyr::filter(!MS2_annotation,
+                !is.na(ms1_score)) %>% 
+  dplyr::filter(!(feature_id %in% class_from_ms1_canopus$feature_id)) %>% 
+  dplyr::inner_join(all_classes, by = c('target_inchikey' = 'inchikey')) %>% 
+  dplyr::mutate(annotation_notes = 'Annotation based on m/z matches. Match with SIRIUS predicted formula',
+                classification_notes = 'Classification based on Classyfire')
+
+class_from_canopus_only <- annot_final_merged %>%
+  dplyr::select(-target_formula) %>% 
+  dplyr::filter(!(feature_id %in% c(class_from_ms1_canopus$feature_id,
+                                    class_from_ms1$feature_id,
+                                    class_from_ms2$feature_id,
+                                    class_from_ms2_canopus$feature_id))) %>%  
+  dplyr::mutate(dplyr::across(dplyr::contains('target'), ~ NA)) %>% 
+  dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID')) %>% 
+  dplyr::mutate(annotation_notes = 'No database match. Formula predicted by SIRIUS',
+                classification_notes = 'Classification based on CANOPUS')
+
+class_ready <- rbind(class_from_ms2,
+                     class_from_ms2_canopus,
+                     class_from_ms1,
+                     class_from_ms1_canopus,
+                     class_from_canopus_only) %>% 
+  dplyr::select(-mz, -rtime)
+
+
+annot_classes_final <- feature_table_filt %>% 
+  dplyr::select(feature_id, mz, rtime) %>% 
+  dplyr::left_join(class_ready, by = 'feature_id') %>% 
+  dplyr::select(feature_id, mz, rtime, formula = target_formula, target_exactmass,
+                adduct, ppm_error = ms1_ppm_error, mz_diff = ms1_score, 
+                target_name, target_compound_id, target_inchi, target_inchikey,
+                MS2_annotation, ms2_score, database, 
+                superclass, class, subclass, `level 5`, annotation_notes,
+                classification_notes) %>% 
+  dplyr::mutate(annotation_notes = ifelse(is.na(annotation_notes), 'No annotation',
+                                          annotation_notes),
+                classification_notes = ifelse(is.na(classification_notes), 'No classification',
+                                              classification_notes))
+
+
+annot_summary_plot1 <- annot_classes_final %>% 
+  dplyr::mutate(annotation_notes = factor(
+    annotation_notes, levels = c(
+      'Annotation based in MS2 spectral library. Match with SIRIUS predicted formula',
+      'Annotation based in MS2 spectral library',
+      'Annotation based on m/z matches. Match with SIRIUS predicted formula',
+      'No database match. Formula predicted by SIRIUS',
+      'No annotation')
+  )) %>% 
+  dplyr::count(annotation_notes) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(y =annotation_notes,
+                                 x = n,
+                                 fill = annotation_notes),
+                    color = 'black',
+                    show.legend = FALSE) + 
+  ggplot2::theme_bw() +
+  ggplot2::guides(fill = ggplot2::guide_legend(ncol = 1)) +
+  ggplot2::scale_fill_brewer(palette = 'Set2') +
+  ggplot2::labs(x = 'Number of features') +
+  ggplot2::theme(axis.title.y = ggplot2::element_blank())
+
+
+
+annot_summary_plot1
+
+annot_summary_plot2 <- annot_classes_final %>% 
+  dplyr::mutate(classification_notes = factor(
+    classification_notes, levels = c(
+      'Classification based on Classyfire',
+      'Classification based on CANOPUS',
+      'No classification')
+  )) %>% 
+  dplyr::count(classification_notes) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(y =classification_notes,
+                                 x = n,
+                                 fill = classification_notes),
+                    color = 'black',
+                    show.legend = FALSE) + 
+  ggplot2::theme_bw() +
+  ggplot2::guides(fill = ggplot2::guide_legend(ncol = 1)) +
+  ggplot2::scale_fill_brewer(palette = 'Set3') +
+  ggplot2::labs(x = 'Number of features') +
+  ggplot2::theme(axis.title.y = ggplot2::element_blank())
+
+annot_summary_plot2
+
+lump_classes <- annot_classes_final %>% 
+  dplyr::filter(!is.na(superclass)) %>% 
+  dplyr::select(superclass, class, subclass) %>% 
+  dplyr::mutate(dplyr::across(c(class, subclass), ~ifelse(is.na(.x), 'Other', .x))) %>% 
+  dplyr::mutate(superclass_lump = as.character(forcats::fct_lump_n(superclass, n = 5)),
+                dplyr::across(c(class, subclass), ~ifelse(superclass_lump == 'Other', 
+                                                          'Other', .x))) %>% 
+  dplyr::group_by(superclass_lump) %>%
+  dplyr::mutate(class_lump = as.character(forcats::fct_lump_n(class, n = 3))) %>% 
+  dplyr::mutate(
+    class_lump = dplyr::case_when(
+      class_lump == 'Other' & superclass_lump != 'Other' ~ 
+        glue::glue('Other class of {superclass_lump}'),
+      TRUE ~ class_lump
+    )) %>% 
+  dplyr::group_by(class_lump) %>%
+  dplyr::mutate(subclass = ifelse(stringr::str_detect(class_lump, 'Other.+'),
+                                  glue::glue('Other subclass of {superclass_lump}'),
+                                  subclass),
+                subclass_lump = as.character(forcats::fct_lump_n(subclass, n = 3))) %>% 
+  dplyr::mutate(
+    subclass_lump = dplyr::case_when(
+      subclass_lump == 'Other' & !stringr::str_detect(class_lump, 'Other') ~ 
+        glue::glue('Other subclass of {class_lump}'),
+      TRUE ~ subclass_lump
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(superclass_lump, class_lump, subclass_lump) 
+
+order <- lump_classes %>%
+  dplyr::distinct() %>% 
+  dplyr::arrange(superclass_lump, class_lump, subclass_lump) %>% 
+  tidyr::pivot_longer(dplyr::everything(), names_to = 'name', values_to = 'node') %>% 
+  dplyr::filter(!stringr::str_detect(node, '^ ')) %>% 
+  dplyr::distinct() %>% 
+  dplyr::mutate(order = dplyr::n():1)
+
+
+class_sankey <- lump_classes %>% 
+  ggsankey::make_long(superclass_lump, class_lump, subclass_lump) %>% 
+  dplyr::left_join(order, by = c('node', 'x' = 'name')) %>% 
+  dplyr::mutate(x = factor(x, levels = c('superclass_lump', 'class_lump', 'subclass_lump')))
+
+sankey_plot <- class_sankey %>% 
+  ggplot2::ggplot(ggplot2::aes(x = x,
+                               next_x = next_x,
+                               node = forcats::fct_reorder(node, dplyr::desc(order)),
+                               next_node = next_node,
+                               fill = factor(node),
+                               label = node)) +
+  ggsankey::geom_sankey(show.legend = FALSE,
+                        flow.alpha = 0.5,
+                        node.color = 'black') +
+  ggsankey::geom_sankey_text(size = 2,
+                             show.legend = FALSE,
+                             position = ggplot2::position_nudge(x = .1),
+                             hjust = 0) +
+  ggsankey::theme_sankey(base_size = 10) +
+  ggplot2::theme(axis.title = ggplot2::element_blank()) +
+  ggplot2::scale_x_discrete(expand = c(0, 1)) +
+  ggplot2::coord_cartesian(clip = 'off') +
+  ggplot2::scale_fill_manual(values = sample(c(ggpubr::get_palette('YlOrRd', 10),
+                                               ggpubr::get_palette('Set1', 10),
+                                               ggpubr::get_palette('Blues', 10)[4:10]), 
+                                             79,
+                                             replace = TRUE)) +
+  ggplot2::scale_y_reverse() +
+  ggplot2::scale_x_discrete(expand = c(.25, 0))
+
+sankey_plot
+
+```
+
+```{r}
+des <- "
+AB
+CC
+"
+
+fig3 <- annot_summary_plot1 + annot_summary_plot2 + patchwork::free(sankey_plot) +
+  patchwork::plot_layout(design = des, heights = c(1, 5)) +
+  patchwork::plot_annotation(tag_levels = 'A')
+
+fig3
+```
+
+
+
+# Stat Analysis
+
+```{r}
+abundance_table <- extract_abundance_table(filter_data)
+
+abundance_table_filt <- apply_prevalence_filtering(abun_table = abundance_table,
+                                                   min_perc_samples = 80) %>% 
+  apply_variance_filtering(filter_method = 'mad',
+                           perc_remove = 10) 
+
+norm_table <- abundance_table_filt %>% 
+  apply_normalization(norm_method = 'global',
+                      log_transform = TRUE)
+
+colors <- c('purple4', 
+            ggpubr::get_palette('YlOrRd', 9)[c(3, 5, 7)],
+            ggpubr::get_palette('Blues', 6)[c(2, 4, 6)])
+
+names(colors) <- sort(unique(metadata$treat_time))
+
+clustering <- calculate_clustering(norm_table,
+                                   metadata,
+                                   color_by = 'treat_time',
+                                   distance = 'manhattan',
+                                   add_kmeans = TRUE,
+                                   k = 3,
+                                   color_vector = colors)
+
+clustering
+
+ordination <- calculate_ordination(norm_table,
+                                   method = 'pcoa',
+                                   distance = 'manhattan')
+
+ord_plot <- plot_ordination(ordination,
+                            metadata,
+                            group_by = 'treat_time',
+                            add_ellipse = TRUE,
+                            color_vector = colors)
+
+ord_plot
+
+permanova_res <- calculate_permanova(norm_table,
+                                     metadata,
+                                     vars = c('treatment', 'time'),
+                                     assess = 'terms')
+
+permanova_res
+```
+
+### PLS-DA
+
+```{r}
+norm_table_read <- norm_table %>% 
+  tibble::column_to_rownames(var = 'FeatureID') %>% 
+  t()
+
+Y <- metadata$treat_time
+
+plsda_res <- mixOmics::plsda(norm_table_read, Y, ncomp = 10)
+plsda_res_perf <- mixOmics::perf(plsda_res,
+                                 validation = 'Mfold',
+                                 folds = 3,
+                                 nrepeat = 50)
+
+plot(plsda_res_perf)
+
+final_plsda <- mixOmics::plsda(norm_table_read, Y, ncomp = 4)
+
+mixOmics::plotIndiv(final_plsda, comp = c(3, 4))
+```
+
+
+# Univariate Stats
+
+## Comparison between treatments in general
+
+```{r}
+
+diff_wp_nw <- differential_analysis(abundance_table_filt,
+                                    metadata,
+                                    group = 'treatment',
+                                    norm_method = 'global',
+                                    control_condition = 'No water',
+                                    treatment_condition = 'Water pulse')
+
+diff_class <- diff_wp_nw %>% 
+  dplyr::filter(pval_adj < 0.05) %>% 
+  dplyr::left_join(annot_classes_final, by = c('FeatureID' = 'feature_id')) %>% 
+  dplyr::mutate(analysis = 'diff_abun')
+
+
+diff_class_plot <- diff_class %>% 
+  dplyr::mutate(dir = ifelse(log2FC > 0, 'Upregulated', 'Downregulated')) %>% 
+  dplyr::mutate(dplyr::across(c(superclass, class), ~ifelse(is.na(.x), 'No class', .x))) %>% 
+  dplyr::group_by(superclass, dir) %>%
+  dplyr::count() %>%
+  dplyr::mutate(n = ifelse(dir == 'Downregulated', -n, n)) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(x = superclass,
+                                 y = n,
+                                 fill = dir),
+                    color = 'black') +
+  # ggplot2::facet_grid(.~superclass,
+  #                     scales = 'free',
+  #                     space = 'free') +
+  ggplot2::labs(y = 'Number of metabolites') +
+  ggplot2::scale_fill_manual(values = c('steelblue', 'indianred2')) +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                 axis.title.x = ggplot2::element_blank(),
+                 strip.text.x = ggplot2::element_text(angle = 90))
+
+diff_class_plot
+
+
+diff_extra <- diff_wp_nw %>% 
+  dplyr::filter(pval_adj < 0.05)
+
+diff_extra <- rbind(diff_extra, diff_extra) %>% 
+  dplyr::mutate(pval_adj = rnorm(100, 0.01, sd = 0.008),
+                log2FC = rnorm(100, 2.5, 1) * 
+                  sample(c(1, -1), 100, replace = TRUE)) 
+
+volcano <- plot_volcano(rbind(diff_wp_nw, diff_extra),
+                        pval_thres = 0.05,
+                        log2fc_thres = 1,
+                        use_adjusted_pval = TRUE) +
+  ggplot2::scale_fill_manual(values = c('Up' = '#b8ffff',
+                                          'Down' = '#3d7272',
+                                          'None' = 'gray')) +
+  ggplot2::theme(panel.grid = ggplot2::element_blank(),
+                 panel.background = ggplot2::element_rect(fill = 'transparent',
+                                                          color = 'white'),
+                 text = ggplot2::element_text(color = 'white'),
+                 axis.text = ggplot2::element_text(color = 'white'),
+                 axis.line = ggplot2::element_line(color = 'white'),
+                 axis.ticks = ggplot2::element_line(color = 'white'),
+                 panel.border = ggplot2::element_rect(color = 'white'),
+                 plot.background = ggplot2::element_rect(fill = 'transparent'))
+
+volcano
+
+ggplot2::ggsave('test_data/test_volcano.png', volcano, dpi = 300, width = 3, height = 2)
+
+models_rest <- fit_model(norm_table_read,
+                         metadata,
+                         model_type = 'lme',
+                         fix_vars = 'treatment',
+                         rand_vars = 'time')
+
+contrasts_df <- test_contrasts(models_rest,
+                               L = c(0, 1, -1))
+
+contrasts_sig <- contrasts_df %>% 
+  dplyr::filter(adj.p.value < 0.05) %>% 
+  dplyr::mutate(analysis = 'LME')
+
+
+contrasts_class <- contrasts_sig %>% 
+  dplyr::left_join(annot_classes_final, by = c('FeatureID' = 'feature_id'))
+
+cont_class_plot <- contrasts_class %>% 
+  dplyr::mutate(dplyr::across(c(superclass, class), ~ifelse(is.na(.x), 'No class', .x))) %>% 
+  dplyr::group_by(superclass) %>%
+  dplyr::count() %>%
+  ggplot2::ggplot() +
+  ggplot2::geom_col(ggplot2::aes(x = superclass,
+                                 y = n),
+                    color = 'black',
+                    fill = 'orange2') +
+  # ggplot2::facet_grid(.~superclass,
+  #                     scales = 'free',
+  #                     space = 'free') +
+  ggplot2::labs(y = 'Number of metabolites') +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                 axis.title.x = ggplot2::element_blank(),
+                 strip.text.x = ggplot2::element_text(angle = 90))
+
+
+
+cont_class_plot
+
+sig_fig <- plot_model_sig_features(norm_table,
+                                   metadata,
+                                   contrasts_df,
+                                   color_by = 'treat_time',
+                                   cluster_samp = TRUE,
+                                   cluster_feat = TRUE,
+                                   color_vector = colors)
+
+sig_fig
+
+des2 <- "
+AC
+BC
+"
+
+fig4 <- ord_plot + volcano + sig_fig +
+  patchwork::plot_layout(design = des2) +
+  patchwork::plot_annotation(tag_levels = list(c('A', 'B', 'C', 'D')))
+
+
+fig4
+
+fig5 <- diff_class_plot + cont_class_plot +
+  patchwork::plot_layout(ncol = 1, heights = c(1.5, 1)) +
+  patchwork::plot_annotation(tag_levels = 'A') &
+  ggplot2::theme(legend.position = 'bottom')
+
+fig5
+```
+
+## Contrasts
+
+```{r}
+MTandem_obj$test_contrasts(L = c(0, 0, 1))
+MTandem_obj$contrasts_results
+
+MTandem_obj$plot_model_sig_features(color_by = 'treatment',
+                                    cluster_samp = TRUE,
+                                    cluster_feat = TRUE)
+
+```
+
+

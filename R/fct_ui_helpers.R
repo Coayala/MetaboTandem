@@ -5,11 +5,15 @@
 #' @return UI elements for boxes
 #'
 #' @noRd
-headerbox_factory <- function(title, status, content, width = 6, id = NULL){
+headerbox_factory <- function(title, status, content,
+                              width = 6, id = NULL,
+                              collapsible = FALSE,
+                              collapsed = FALSE){
   box(title = title,
       status = status,
       solidHeader = TRUE,
-      collapsible = FALSE,
+      collapsible = collapsible,
+      collapsed = collapsed,
       closable = FALSE,
       width = width,
       id = id,
@@ -18,13 +22,20 @@ headerbox_factory <- function(title, status, content, width = 6, id = NULL){
 }
 
 colorpicker_factory <- function(id, label){
+
+  string <- paste0(sample(c(0:9, LETTERS[1:6]), 6, replace = TRUE), collapse = '')
+
   colourpicker::colourInput(id,
                             label = label,
-                            value = paste0(
-                              '#', paste0(sample(0:9, 6, replace = TRUE),
-                                          collapse = '')
-                            ),
+                            value = paste0('#', string),
                             closeOnClick = TRUE)
+}
+
+numpicker_factory <- function(id, label){
+  numericInput(id,
+               label = label,
+               value = 0,
+               step = 1)
 }
 
 next_button <- function(id){

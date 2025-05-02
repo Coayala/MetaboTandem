@@ -40,8 +40,9 @@ golem::add_fct("alignment")
 golem::add_fct("correspondence")
 
 #### Gap filling
-golem::add_module(name = "gap_filling", with_test = TRUE) # Name of the module
+golem::add_module(name = "postprocessing", with_test = TRUE) # Name of the module
 golem::add_fct("gap_filling")
+golem::add_fct("metaclean")
 
 #### Statistical Analysis
 golem::add_module(name = "stats_setup", with_test = TRUE) # Name of the module
@@ -52,10 +53,19 @@ golem::add_fct("data_filter")
 ##### Univariate analysis
 golem::add_module(name = "stats_univ", with_test = TRUE) # Name of the module
 golem::add_fct("stats_univ")
+
 ##### Multivariate analysis
 golem::add_module(name = "stats_multi", with_test = TRUE) # Name of the module
 golem::add_fct("stats_multi")
 golem::add_fct("external")
+
+#### Annotation
+golem::add_module(name = "annotation", with_test = TRUE) # Name of the module
+golem::add_fct("annotation")
+golem::add_fct("sirius")
+
+golem::add_fct('autotuner')
+golem::add_fct('metaclean')
 
 
 ## Add helper functions ----

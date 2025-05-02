@@ -7,17 +7,42 @@ Description: MetaboTandem is an R package and shiny app for the analysis,
     annotation and visualization of LC-MS/MS data.
 License: MIT + file LICENSE
 Imports: 
+    AnnotationHub,
+    Autotuner,
     BiocParallel,
+    broom,
+    classyfireR,
+    colourpicker,
+    CompoundDb,
     config,
     dplyr,
     DT,
+    factoextra,
+    ggforce,
+    ggplot2,
     ggpubr,
+    ggtree,
     golem,
     htmltools,
+    legendry,
+    limma,
+    lme4,
+    lmerTest,
     magrittr,
+    matrixStats,
+    MetaboAnnotation,
+    MetaboCoreUtils,
+    MetaClean,
+    MsBackendMgf,
+    MsExperiment,
     MSnbase,
+    multcomp,
     parallel,
+    patchwork,
+    performance,
+    purrr,
     R6,
+    readr,
     shiny,
     shinyalert,
     shinyBS,
@@ -26,12 +51,19 @@ Imports:
     shinyFiles,
     shinyjs,
     shinyWidgets,
+    Spectra,
+    stringr,
+    tibble,
     tidyr,
     tools,
+    vegan,
     vroom,
+    vsn,
     waiter,
     xcms
 Suggests: 
+    knitr,
+    rmarkdown,
     spelling,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
@@ -40,3 +72,5 @@ Language: en-US
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+URL: https://coayala.github.io/MetaboTandem/
+VignetteBuilder: knitr

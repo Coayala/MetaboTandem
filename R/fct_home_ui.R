@@ -115,7 +115,7 @@ home_ui <- function(){
         ),
 
         # Box for the annotate MGF
-        box(title = 'Annotate MGF',
+        box(title = 'Annotate Spectra',
             headerBorder = FALSE,
             background = 'maroon',
             collapsible = FALSE,
@@ -127,6 +127,24 @@ home_ui <- function(){
               column(6, align = 'center', offset = 3,
                      shinyWidgets::actionBttn(inputId = 'goAnnotate',
                                               icon = icon('magnifying-glass'),
+                                              style = 'jelly',
+                                              size = 'lg'))
+            )
+        ),
+
+
+        box(title = 'Apply Statistical Analysis',
+            headerBorder = FALSE,
+            background = 'orange',
+            collapsible = FALSE,
+            closable = FALSE,
+            gradient = TRUE,
+            footer = p('Apply statistical analysis using feature abundance tables',
+                       style = 'color:gray'),
+            fluidRow(
+              column(6, align = 'center', offset = 3,
+                     shinyWidgets::actionBttn(inputId = 'goAnnotate',
+                                              icon = icon('chart-bar'),
                                               style = 'jelly',
                                               size = 'lg'))
             )

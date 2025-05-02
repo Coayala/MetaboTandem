@@ -61,8 +61,7 @@ load_metadata <- function(metadata_file){
 #' @export
 load_spectra_data <- function(datadir,
                               metadata,
-                              format = 'mzML',
-                              mode = 'onDisk'){
+                              format = 'mzML'){
   # Get list of mass spectra files
   ms_files <- list.files(datadir, full.names = TRUE,
                          pattern = paste0('.*', format))
@@ -71,12 +70,56 @@ load_spectra_data <- function(datadir,
     stop('No files of the specified format found in this directory')
   }
 
+  file_df <- data.frame(file_name = ms_files) %>%
+    dplyr::mutate(SampleID = stringr::str_remove(basename(file_name),
+                                                 paste0('.', format)))
+
+  metadata_ready <- file_df %>%
+    dplyr::left_join(metadata, by = 'SampleID')
+
   # Read data as an `OnDiskMSnExp` object from xcms
-  data <- MSnbase::readMSData(ms_files,
-                              pdata = new('NAnnotatedDataFrame', metadata),
-                              mode = mode,
-                              verbose = TRUE)
+  data <- MsExperiment::readMsExperiment(spectraFiles = ms_files,
+                                         sampleData = metadata_ready)
+
+  if(!unique(Spectra::centroided(data@spectra))){
+
+    new_dir <- paste0(stringr::str_remove(datadir, '\\/$'),
+                      '_centroided')
+
+    dir.create(new_dir, showWarnings = FALSE)
+
+    print(paste0('Data is not centroided. Centroid data will be stored in ',
+                 new_dir, '. Use this folder for subsequent analysis.'))
+
+    for(fl in ms_files){
+      spec_data <- Spectra::Spectra(fl,
+                                    source = Spectra::MsBackendMzR()) %>%
+        Spectra::smooth(method = "SavitzkyGolay") %>%
+        Spectra::pickPeaks()
+
+      new_fl <- paste0(dirname(fl), "_centroided/", basename(fl))
+
+      Spectra::export(spec_data, Spectra::MsBackendMzR(), file = new_fl)
+    }
+
+    new_names <- list.files(new_dir, full.names = TRUE,
+                            pattern = paste0('.*', format))
+
+
+    file_df <- data.frame(file_name = new_names) %>%
+      dplyr::mutate(SampleID = stringr::str_remove(basename(file_name),
+                                                   paste0('.', format)))
+
+    metadata_ready <- file_df %>%
+      dplyr::left_join(metadata, by = 'SampleID')
+
+    # Read data as an `OnDiskMSnExp` object from xcms
+    data <- MsExperiment::readMsExperiment(spectraFiles = new_names,
+                                           sampleData = metadata_ready)
+  }
+
   return(data)
+
 }
 
 #' Check centroided
@@ -93,14 +136,14 @@ load_spectra_data <- function(datadir,
 centroid_check <- function(data,
                            transform = TRUE){
   if(!is.null(data)){
-    is.centroided <- unique(MSnbase::fData(data)$centroided)
+    is.centroided <- unique(Spectra::centroided(data@spectra))
     if(is.centroided){
       print('Data is centroided')
     } else{
       print('Data is not centroided')
       if(transform){
         print('Transforming data')
-        data_cent <- data %>%
+        data <- data %>%
           MSnbase::smooth(method = "SavitzkyGolay") %>%
           MSnbase::pickPeaks()
       }
@@ -109,5 +152,5 @@ centroid_check <- function(data,
     stop('Data has not been loaded')
   }
 
-  return(data_cent)
+  return(data)
 }

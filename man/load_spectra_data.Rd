@@ -4,7 +4,7 @@
 \alias{load_spectra_data}
 \title{Load Spectra Data}
 \usage{
-load_spectra_data(datadir, metadata, format = "mzML", mode = "onDisk")
+load_spectra_data(datadir, metadata, format = "mzML")
 }
 \arguments{
 \item{datadir}{Path to the directory containing the data files.}
