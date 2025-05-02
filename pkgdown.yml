@@ -1,0 +1,9 @@
+pandoc: 3.1.11
+pkgdown: 2.1.2
+pkgdown_sha: ~
+articles:
+  example: example.html
+last_built: 2025-05-02T22:24Z
+urls:
+  reference: https://coayala.github.io/MetaboTandem/reference
+  article: https://coayala.github.io/MetaboTandem/articles
