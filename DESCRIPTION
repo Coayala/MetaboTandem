@@ -8,10 +8,8 @@ Description: MetaboTandem is an R package and shiny app for the analysis,
 License: MIT + file LICENSE
 Imports: 
     AnnotationHub,
-    Autotuner,
     BiocParallel,
     broom,
-    classyfireR,
     colourpicker,
     CompoundDb,
     config,
@@ -32,7 +30,6 @@ Imports:
     matrixStats,
     MetaboAnnotation,
     MetaboCoreUtils,
-    MetaClean,
     MsBackendMgf,
     MsExperiment,
     MSnbase,
