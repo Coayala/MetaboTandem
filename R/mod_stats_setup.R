@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-mod_stats_setup_ui <- function(id) {
+mod_stats_setup_ui <- function(id, solo = FALSE) {
   ns <- NS(id)
 
   filter_list <- c('Interquantile range' = 'iqr',
@@ -32,6 +32,7 @@ mod_stats_setup_ui <- function(id) {
       id = 'norm_params_box',
       content = tagList(
         fluidRow(
+          col_12( uiOutput(ns('if_solo'))),
           col_6(
             shinyWidgets::numericInputIcon(ns('prevalence'),
                                            label = 'Prevalence percentage',
@@ -79,11 +80,18 @@ mod_stats_setup_ui <- function(id) {
 
     uiOutput(ns('setup_results')),
 
-    fluidRow(
-      col_3(back_button(id = 'back_buttonSS')),
-      col_3(),
-      col_6(uiOutput(ns('next_buttonsSS')))
-    )
+    if(solo){
+      fluidRow(
+        col_6(),
+        col_6(uiOutput(ns('next_buttonsSS')))
+      )
+    } else {
+      fluidRow(
+        col_3(back_button(id = 'back_buttonSS')),
+        col_3(),
+        col_6(uiOutput(ns('next_buttonsSS')))
+      )
+    }
 
   )
 }
@@ -91,7 +99,7 @@ mod_stats_setup_ui <- function(id) {
 #' stats_setup Server Functions
 #'
 #' @noRd
-mod_stats_setup_server <- function(id, MTandem_obj){
+mod_stats_setup_server <- function(id, MTandem_obj, solo = FALSE){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
@@ -99,6 +107,37 @@ mod_stats_setup_server <- function(id, MTandem_obj){
     waiter_ss <- waiter::Waiter$new(id = ns('norm_params_box'),
                                     html = waiter::spin_hexdots(),
                                     color = waiter::transparent(.1))
+
+    if(solo){
+      output$if_solo <- renderUI({
+        fluidRow(
+          column(5,
+                 fileInput(ns('stats_file'), 'Metabolite abundance file', accept = c('.csv', '.tsv'))),
+          col_1(uiOutput(ns('new_file_check'))),
+          column(5,
+                 fileInput(ns('solo_metadata_file'), 'Metadata file', accept = c('.csv', '.tsv'))),
+          col_1(uiOutput(ns('new_metadata_check')))
+        )
+      })
+    }
+
+    output$new_file_check <- renderUI({
+      MTandem_obj$abundance_table <- load_dataframe(input$stats_file$datapath)
+
+      if(!is.null(MTandem_obj$abundance_table)){
+        HTML(as.character(span(icon("check", style = "color: green;"))))
+      }
+    }) %>%
+      bindEvent(input$stats_file)
+
+    output$new_metadata_check <- renderUI({
+      MTandem_obj$load_metadata(input$solo_metadata_file$datapath)
+
+      if(!is.null(MTandem_obj$metadata)){
+        HTML(as.character(span(icon("check", style = "color: green;"))))
+      }
+    }) %>%
+      bindEvent(input$solo_metadata_file)
 
     output$show_perc <- renderUI({
       if(input$filter_methods != 'none'){
@@ -115,7 +154,8 @@ mod_stats_setup_server <- function(id, MTandem_obj){
     output$apply_log <- renderUI({
       if(input$norm_methods %in% c('global',
                                    'median',
-                                   'mean')){
+                                   'mean',
+                                   'max')){
         checkboxInput(ns('log_transform'),
                       'Apply generalized log transformation',
                       value = FALSE)
@@ -182,12 +222,22 @@ mod_stats_setup_server <- function(id, MTandem_obj){
     )
 
     output$next_buttonsSS <- renderUI({
+
+      extra_id <- ''
+      if(solo){
+        id1 <- 'SS_univ_solo'
+        id2 <- 'SS_multi_solo'
+      } else {
+        id1 <- 'SS_univ'
+        id2 <- 'SS_multi'
+      }
+
       if(is_norm()){
         tagList(
-          other_arrow_button(id = 'SS_univ',
+          other_arrow_button(id = id1,
                              label = 'Go to Univariate Analysis'),
           br(),
-          other_arrow_button(id = 'SS_multi',
+          other_arrow_button(id = id2,
                              label = 'Go to Multivariate Analysis')
         )
       }

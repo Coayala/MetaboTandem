@@ -143,8 +143,25 @@ home_ui <- function(){
                        style = 'color:gray'),
             fluidRow(
               column(6, align = 'center', offset = 3,
-                     shinyWidgets::actionBttn(inputId = 'goAnnotate',
+                     shinyWidgets::actionBttn(inputId = 'goStats',
                                               icon = icon('chart-bar'),
+                                              style = 'jelly',
+                                              size = 'lg'))
+            )
+        ),
+
+        box(title = 'Create MetaClean model',
+            headerBorder = FALSE,
+            background = 'teal',
+            collapsible = FALSE,
+            closable = FALSE,
+            gradient = TRUE,
+            footer = p('Create metaclean models to reduce false positive peaks',
+                       style = 'color:gray'),
+            fluidRow(
+              column(6, align = 'center', offset = 3,
+                     shinyWidgets::actionBttn(inputId = 'goMetaclean',
+                                              icon = icon('broom'),
                                               style = 'jelly',
                                               size = 'lg'))
             )

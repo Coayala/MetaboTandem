@@ -31,7 +31,7 @@ start_autotuner <- function(metadata,
                     Autotuner::ThresholdingAlgo, lag, threshold, influence)
 
   if(plot){
-    Autotuner::plot_signals(autotuner_obj,
+    plot <- Autotuner::plot_signals(autotuner_obj,
                             threshold,
                             ## index for which data files should be displayed
                             sample_index = 1:nrow(metadata),

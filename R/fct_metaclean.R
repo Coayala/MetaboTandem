@@ -63,3 +63,52 @@ apply_cleaning <- function(data,
 
   return(data_filt)
 }
+
+
+#' Prepare data for training a metaclean model
+#'
+#' @description Function to prepare dataset for training a metaclean model
+#'
+#' @importFrom magrittr `%<>%`
+#'
+#' @return The return value, if any, from executing the function.
+#'
+#' @noRd
+prepare_for_cleaning <- function(data, metadata, n_subset){
+
+  feature_table <- extract_feature_definitions(data)
+
+  ft_def <- xcms::featureDefinitions(data)
+
+  xcms_set <- as(xcms::filterMsLevel(data, msLevel = 1), 'xcmsSet')
+  xcms::sampclass(xcms_set) <- metadata[[2]]
+
+  xcms_fill <- xcms::fillPeaks(xcms_set)
+
+  peak_group_names_available <- data.frame(
+    FeatureID = rownames(ft_def),
+    group_name = xcms::groupnames(xcms_set)
+  ) %>%
+    dplyr::filter(group_name %in% xcms::groupnames(xcms_fill))
+  # Select peaks and extract eics
+
+  set.seed(123)
+  sel_peaks <- sample(peak_group_names_available$FeatureID, n_subset) %>%
+    stringr::str_remove('FT') %>%
+    as.numeric
+
+  chroms <- xcms::featureChromatograms(data,
+                                       features = feature_table$feature_id[sel_peaks],
+                                       filled = TRUE)
+  keep <- logical(length(sel_peaks))
+  for(i in seq_along(sel_peaks)){
+    keep[i] <- !MSnbase::isEmpty(chroms[i,])
+  }
+
+  dev_eic <- xcms::getEIC(xcms_set,
+                          groupidx = sel_peaks,
+                          rt = 'corrected')
+
+  res <- list(sel_peaks = sel_peaks
+              )
+}

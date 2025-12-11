@@ -64,7 +64,13 @@ golem::add_module(name = "annotation", with_test = TRUE) # Name of the module
 golem::add_fct("annotation")
 golem::add_fct("sirius")
 
+
+#### Autotuner
+golem::add_module(name = "autotuner", with_test = TRUE) # Name of the module
 golem::add_fct('autotuner')
+
+#### Metaclean
+golem::add_module(name = "metaclean", with_test = TRUE) # Name of the module
 golem::add_fct('metaclean')
 
 

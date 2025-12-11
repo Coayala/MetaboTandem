@@ -37,7 +37,8 @@ mod_main_pipeline_ui <- function(id) {
                  icon = icon('cogs'),
                  menuSubItem('Load Data',
                              tabName = 'load_data',
-                             icon = icon('upload')),
+                             icon = icon('upload'),
+                             selected = TRUE),
                  menuSubItem('Peak picking',
                              tabName = 'p_pick',
                              icon = icon('check')),
@@ -54,9 +55,6 @@ mod_main_pipeline_ui <- function(id) {
                  menuSubItem('Public or custom databases',
                              tabName = 'dbs_annot',
                              icon = icon('database')),
-                 # menuSubItem('Using SIRIUS',
-                 #             tabName = 'sirius_annot',
-                 #             icon = icon('computer')),
                  startExpanded = TRUE),
         menuItem('Statistical Analysis',
                  tabName = 'stat',
@@ -71,15 +69,6 @@ mod_main_pipeline_ui <- function(id) {
                              tabName = 'stats_univ',
                              icon = icon('expand-alt')),
                  startExpanded = TRUE)
-        # menuItem('Results summary',
-        #          tabName = 'res_summ',
-        #          icon = icon('table')),
-        # menuItem('Results Download',
-        #          tabName = 'res',
-        #          icon = icon('download'),
-        #          menuSubItem('Pre-processing Tables',
-        #                      tabName = 'res_preproc',
-        #                      icon = icon('file-download')))
       )
     ),
 
@@ -130,10 +119,6 @@ mod_main_pipeline_ui <- function(id) {
                 h1('Metabolite annotation'),
                 mod_annotation_ui("annotation_1")
         ),
-        # tabItem(tabName = 'sirius_annot',
-        #         h1('Annotation using SIRIUS predictions')
-        #         # siriusAnnotationUI('annot_sirius')
-        # ),
 
         ## Statistical analysis
         tabItem(tabName = 'stats_setup',
@@ -149,29 +134,10 @@ mod_main_pipeline_ui <- function(id) {
                 mod_stats_univ_ui("stats_univ_1")
         )
 
-        ## Results tabs
-        # tabItem(tabName = 'res_summ',
-        #         h1('Results summary')
-        #         # summaryUI('summ')
-        # ),
-        #
-        # tabItem(tabName = 'res_preproc',
-        #         h1('Select data to download')
-        #         # download_ResultspreprocUI('dl_preproc')
-        # )
       )
     ),
 
     # Sidebar contet
-    dashboardControlbar(
-      br(),
-      box(
-        title = 'Color palette selector',
-        solidHeader = TRUE,
-        width = 12
-        # colorPickerUI('side')
-        #h2('here')
-      )
-    )
+    dashboardControlbar()
   )
 }

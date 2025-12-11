@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-mod_stats_multi_ui <- function(id) {
+mod_stats_multi_ui <- function(id, solo = FALSE) {
   ns <- NS(id)
 
   tagList(
@@ -47,15 +47,27 @@ mod_stats_multi_ui <- function(id) {
 
     uiOutput(ns('perma_results')),
 
-    fluidRow(
-      col_3(back_button(id = 'back_buttonSM')),
-      col_3(),
-      col_6(
-        # uiOutput(ns('next_buttonsSM'))
-        other_arrow_button(id = 'SM_univ',
-                           label = 'Go to Univariate Analysis')
+    if(solo){
+      fluidRow(
+        col_3(back_button(id = 'back_buttonSM_solo')),
+        col_3(),
+        col_6(
+          # uiOutput(ns('next_buttonsSM'))
+          other_arrow_button(id = 'SM_univ_solo',
+                             label = 'Go to Univariate Analysis')
+        )
       )
-    )
+    } else {
+      fluidRow(
+        col_3(back_button(id = 'back_buttonSM')),
+        col_3(),
+        col_6(
+          # uiOutput(ns('next_buttonsSM'))
+          other_arrow_button(id = 'SM_univ',
+                             label = 'Go to Univariate Analysis')
+        )
+      )
+    }
 
   )
 }
@@ -431,16 +443,6 @@ mod_stats_multi_server <- function(id, MTandem_obj){
       res
     }) %>%
       bindEvent(input$process_perma)
-
-    output$next_buttonsSM <- renderUI({
-      if(has_ordination()){
-        tagList(
-          other_arrow_button(id = 'SM_univ',
-                             label = 'Go to Univariate Analysis')
-        )
-      }
-    }) %>%
-      bindEvent(input$process)
 
   })
 }

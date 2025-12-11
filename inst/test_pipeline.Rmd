@@ -21,7 +21,7 @@ MTandem_obj$load_metadata(metadata_file = 'test_data/metadata_QC.csv')
 # MTandem_obj$metadata <- MTandem_obj$metadata %>%
 #   dplyr::mutate(FileName = 'Z:/PhD_stuff/QC_lcmsms_centroided/RP_Pos_QC_Mix_Start.mzML')
 
-MTandem_obj$metadata
+MTandem_obj$metadata[[2]]
 
 # autotuner_obj <- start_autotuner(MTandem_obj$metadata,
 #                                  group = 'treatment',
@@ -128,6 +128,7 @@ MTandem_obj$feature_spectra
 MTandem_obj$get_annotation_tables()
 
 MTandem_obj$merge_annotation_tables()
+
 
 
 annot <- MTandem_obj$annotation_merged
@@ -261,3 +262,18 @@ plot_mirror(MTandem_obj$annotation_tables$ms2_matches,
 
 
 ```
+
+# Solo annotate
+
+```{r}
+MTandem_obj_solo <- MetaboTandem$new()
+
+
+MTandem_obj_solo$feature_spectra <- Spectra::Spectra('test_data/metabotandem_paper.mgf',
+                                                     source = MsBackendMgf::MsBackendMgf())
+
+MTandem_obj_solo$feature_spectra
+```
+
+
+

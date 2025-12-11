@@ -7,7 +7,7 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
-mod_stats_univ_ui <- function(id) {
+mod_stats_univ_ui <- function(id, solo = FALSE) {
   ns <- NS(id)
   tagList(
     # Parameter box for differential analysis ----
@@ -67,14 +67,25 @@ mod_stats_univ_ui <- function(id) {
 
     uiOutput(ns('model_results')),
 
-    fluidRow(
-      col_3(back_button(id = 'back_buttonSU')),
-      col_3(),
-      col_6(
-        other_arrow_button(id = 'SU_multi',
-                           label = 'Go to Multivariate Analysis')
+    if(solo){
+      fluidRow(
+        col_3(back_button(id = 'back_buttonSU_solo')),
+        col_3(),
+        col_6(
+          other_arrow_button(id = 'SU_multi_solo',
+                             label = 'Go to Multivariate Analysis')
+        )
       )
-    )
+    } else {
+      fluidRow(
+        col_3(back_button(id = 'back_buttonSU')),
+        col_3(),
+        col_6(
+          other_arrow_button(id = 'SU_multi',
+                             label = 'Go to Multivariate Analysis')
+        )
+      )
+    }
   )
 }
 

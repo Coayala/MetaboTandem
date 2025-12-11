@@ -18,20 +18,27 @@ devtools::load_all()
 metadata <- readr::read_csv('test_data/metadata_papers.csv') %>% 
   dplyr::mutate(
     FileName = glue::glue(
-      'Z:/PhD_stuff/arid_lcms_data/Arid_LC_MS_RAW_2-21-22/VEFZ-4852531/RP/RP_mzML_centroided/{SampleID}.mzML'
+      'Z:/PhD_stuff/arid_lcms_data/Arid_LC_MS_RAW_2-21-22/VEFZ-4852531/RP/',
+      'RP_mzML_centroided/{SampleID}.mzML'
     ),
-    treat_time = ifelse(time != 'T0', glue::glue('{treatment}_{time}'), treatment)
+    tt = ifelse(time != 'T0', glue::glue('{treatment}_{time}'), treatment)
   )
 
-# autotuner_obj <- start_autotuner(metadata,
-#                                  group = 'treatment',
-#                                  lag = 40,
-#                                  threshold = 3.1,
-#                                  influence = .1,
-#                                  plot = TRUE)
-# 
-# autotuner_params <- extract_autotuner(autotuner_obj,
-#                                       massThr = 0.005)
+readr::write_csv(metadata, 'test_data/metadata_autotuner.csv')
+
+autotuner_obj <- start_autotuner(metadata,
+                                 group = 'time',
+                                 lag = 40,
+                                 threshold = 3.1,
+                                 influence = .1,
+                                 plot = TRUE)
+
+zz <- grDevices::recordPlot()
+
+zz
+
+autotuner_params <- extract_autotuner(autotuner_obj,
+                                      massThr = 0.005)
 # 
 # readr::write_csv(autotuner_params, 'test_data/autotuner.csv')
 
@@ -113,6 +120,8 @@ data <- apply_gap_filling(data,
 xcms::hasFilledChromPeaks(data)
 
 feature_table <- extract_feature_definitions(data)
+
+# readr::write_csv(feature_table, 'test_data/feature_definitions.csv')
 ```
 
 # Cleaning with MetaClean
@@ -147,11 +156,9 @@ for(i in seq_along(sel_peaks)){
   keep[i] <- !MSnbase::isEmpty(chroms[i,])
 }
 
-dev_eic <- xcms::getEIC(xcms_set,
-                        groupidx = sel_peaks,
-                        rt = 'corrected')
 
-labels <- data.frame(feature_id = feature_table$feature_id[sel_peaks]) %>% 
+
+rv$labels <- data.frame(feature_id = feature_table$feature_id[sel_peaks]) %>% 
   dplyr::mutate(Label = NA)
 
 for(i in seq_along(sel_peaks)){
@@ -159,9 +166,6 @@ for(i in seq_along(sel_peaks)){
   xcms::plot(chroms[i,], 
              main = ft_id, 
              col = col_vector)
-  # legend('topleft', legend = names(treatment_colors), col = treatment_colors, 
-  #        lty = rep(1, length(treatment_colors)), cex = .8, 
-  #        lwd = rep(2, length(treatment_colors)))
   
   labels$Label[i] <- readline(
     prompt = paste0(i, '. Enter G (Pass) or F (Fail): ')
@@ -173,10 +177,23 @@ for(i in seq_along(sel_peaks)){
   
 }
 
-labels_ready <- labels %>% 
+
+
+rv$labels_ready <- rv$labels %>% 
   dplyr::mutate(Label = ifelse(Label == 'G', 'Pass', 'Fail'))
 
 readr::write_csv(labels_ready, 'test_data/feature_labels_updated2.csv')
+
+#split test and development
+
+dev_eic <- xcms::getEIC(xcms_set,
+                        groupidx = sel_peaks,
+                        rt = 'corrected')
+
+rv$labels_dev <- rv$labels_ready[sample(1:nrow(rv$labels_ready), nrow(rv$labels_ready)*.5),]
+rv$labels_test <- rv$labels_ready %>% 
+  dplyr::filter(!feature_id %in% rv$labels_dev$feature_id)
+
 
 eic_eval_dev <- MetaClean::getEvalObj(xs = dev_eic,
                                       fill = xcms_fill)
@@ -306,12 +323,15 @@ filter_data <- xcms::filterFeatureDefinitions(data, features = pass_metabolites$
 spectra <- extract_feature_spectra(filter_data,
                                    rm_low_int = FALSE,
                                    min_peaks = 0)
+
 spectra_var_map <- c(feature_id = 'TITLE',
                      MsBackendMgf::spectraVariableMapping(MsBackendMgf::MsBackendMgf()))
 
 
+spectra <- extract_feature_spectra(data)
+
 Spectra::export(spectra, MsBackendMgf::MsBackendMgf(), 
-                file = 'test_data/metabotandem_paper.mgf',
+                file = 'test_data/all_spectra.mgf',
                 mapping = spectra_var_map)
 
 
@@ -343,10 +363,12 @@ pp$data
 ## Annotation
 
 ```{r}
-annot_tables <- get_annotation_tables(feature_table = feature_table_filt,
-                                      feature_spectra = spectra,
-                                      selected_dbs = c('massbank', 'mona', 'hmdb_exp',
-                                                       'hmdb_pred', 'gnps'),
+
+loaded_spectra <- load_mgf_spectra('test_data/all_spectra.mgf')
+
+annot_tables <- get_annotation_tables(feature_table = feature_table,
+                                      feature_spectra = loaded_spectra,
+                                      selected_dbs = c('massbank'),
                                       adducts = c("[M+H]+"),
                                       tolerance = 0.005,
                                       ppm = 5,

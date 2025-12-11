@@ -19,10 +19,14 @@ MetaboTandem <- R6::R6Class(
     feature_spectra = NULL,
     annotation_results = NULL,
     annotation_merged = NULL,
-    annotation_classes = NULL,
+    classyfire_classes = NULL,
+    canopus_classes = NULL,
+    annotation_with_class = NULL,
     feature_chromatograms = NULL,
-    load_metadata = function(metadata_file){
-      self$metadata <- load_metadata(metadata_file)
+    autotuner_obj = NULL,
+    load_metadata = function(metadata_file, autotuner = FALSE){
+      self$metadata <- load_metadata(metadata_file,
+                                     autotuner = autotuner)
       invisible(self)
     },
     get_groups = function(){
@@ -130,8 +134,10 @@ MetaboTandem <- R6::R6Class(
       invisible(self)
     },
     filter_and_normalize = function(min_perc_samples,
-                                    filter_method, perc_remove,
-                                    norm_method, log_transform){
+                                    filter_method,
+                                    perc_remove,
+                                    norm_method,
+                                    log_transform){
 
       df <- apply_prevalence_filtering(
         self$abundance_table,
@@ -300,6 +306,12 @@ MetaboTandem <- R6::R6Class(
 
       invisible(self)
     },
+    extract_feature_chromatograms = function(){
+      self$feature_chromatograms <- extract_feature_chromatograms(self$data,
+                                                                  self$feature_definitions)
+
+      invisible(self)
+    },
     get_annotation_tables = function(selected_dbs = c('massbank',
                                                       'mona',
                                                       'hmdb_exp',
@@ -333,14 +345,23 @@ MetaboTandem <- R6::R6Class(
 
       invisible(self)
     },
-    add_molecular_class = function(){
-      self$annotation_classes <- get_molecular_class(self$annotation_merged)
+    run_classyfire = function(){
+      self$classyfire_classes <- run_classyfire(self$annotation_merged)
 
       invisible(self)
     },
-    extract_feature_chromatograms = function(){
-      self$feature_chromatograms <- extract_feature_chromatograms(self$data,
-                                                                  self$feature_definitions)
+    run_sirius = function(output_prefix,
+                          cores){
+      self$canopus_classes <- run_sirius(self$annotation_merged,
+                                         output_prefix,
+                                         cores)
+
+      invisible(self)
+    },
+    add_molecular_classes = function(){
+      self$annotation_with_class <- add_molecular_classes(self$annotation_merged,
+                                                          self$classyfire_classes,
+                                                          self$canopus_classes)
 
       invisible(self)
     },
@@ -348,6 +369,26 @@ MetaboTandem <- R6::R6Class(
       plot_mirror(self$annotation_results$ms2_matches,
                   self$annotation_merged,
                   feature_id = feature_id)
+    },
+    start_autotuner = function(group,
+                               lag,
+                               threshold,
+                               influence,
+                               plot = FALSE){
+
+      self$autotuner_obj <- start_autotuner(self$metadata,
+                                            group = group,
+                                            lag = lag,
+                                            threshold = threshold,
+                                            influence = influence,
+                                            plot = plot)
+
+      invisible(self)
+
+    },
+    extract_autotuner = function(){
+      extract_autotuner(self$autotuner_obj,
+                        massThr = 0.005)
     }
   )
 )

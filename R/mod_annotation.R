@@ -51,14 +51,20 @@ mod_annotation_ui <- function(id) {
                              value = 0.5, step = 0.1, min = 0, max = 1))
         ),
         fluidRow(
-          col_12(
-            hr(),
-            h3(strong('Molecular Classification')),
+          col_12(hr()),
+          col_12(h3(strong('Molecular Classification')))
+        ),
+        fluidRow(
+          col_6(
             checkboxInput(ns('use_classyfire'), 'Use Classyfire',
-                          value = FALSE),
-            checkboxInput(ns('use_sirius'), 'Use CANOPUS (part of the SIRIUS suite)',
                           value = FALSE)
           )
+        ),
+        fluidRow(
+          col_6(
+            checkboxInput(ns('use_sirius'), 'Use CANOPUS (part of the SIRIUS suite)',
+                          value = FALSE)),
+          col_6(uiOutput(ns('sirius_params')))
         ),
         fluidRow(
           col_6(),
@@ -94,17 +100,59 @@ mod_annotation_server <- function(id, MTandem_obj, solo = FALSE){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
-    if(solo){
-      output$if_solo <- renderUI({
-        fileInput(ns('mgf_file'), 'Choose file', accept = c('.mgf'))
-      })
-    }
 
     # Waiter
     waiter_ann <- waiter::Waiter$new(id = c(ns('spec_annot_box')),
                                      html = waiter::spin_hexdots(),
                                      color = waiter::transparent(.1))
 
+    # Logic for solo app
+    if(solo){
+      output$if_solo <- renderUI({
+        fluidRow(
+          col_6(fileInput(ns('mgf_file'), 'Spectra file', accept = c('.mgf')),
+                uiOutput(ns('mgf_loaded'))),
+          col_6(fileInput(ns('feature_def_file'), 'Feature definitions file', accept = c('.csv', '.tsv')),
+                uiOutput(ns('check_feature_def')))
+        )
+
+      })
+    }
+
+    output$mgf_loaded <- renderUI({
+
+      MTandem_obj$feature_spectra <- load_mgf_spectra(input$mgf_file$datapath)
+
+      if(is(MTandem_obj$feature_spectra, 'Spectra')){
+        colored_text('Spectra loaded correctly', color = 'green')
+      } else {
+        colored_text('Please load spectra in mgf format', color = 'red')
+      }
+
+    }) %>%
+      bindEvent(input$mgf_file)
+
+    output$check_feature_def <- renderUI({
+      MTandem_obj$feature_definitions <- as.data.frame(load_dataframe(input$feature_def_file$datapath))
+
+      if(!is.null(MTandem_obj$feature_definitions)){
+        colored_text('Feature definitions loaded correctly', color = 'green')
+      }
+    }) %>%
+      bindEvent(input$feature_def_file)
+
+    output$sirius_params <- renderUI({
+      if(input$use_sirius){
+        tagList(
+          textInput(ns('sirius_out_prefix'), 'SIRIUS results output prefix'),
+          numericInput(ns('sirius_cores'), 'Num. cores', value = 1,
+                       min = 1, max = parallel::detectCores())
+        )
+      }
+    })
+
+
+    # Logic for annotation
     has_annot <- reactive({
       waiter_ann$show()
       MTandem_obj$get_annotation_tables(selected_dbs = input$annot_db,
@@ -117,35 +165,61 @@ mod_annotation_server <- function(id, MTandem_obj, solo = FALSE){
 
       MTandem_obj$merge_annotation_tables(candidates = input$candidates)
 
+      if(input$use_classyfire){
+        MTandem_obj$run_classyfire()
+      }
+
+      if(input$use_sirius){
+        MTandem_obj$run_sirius(input$sirius_out_prefix,
+                               input$sirius_cores)
+      }
+
+      if(input$use_classyfire | input$use_sirius){
+        MTandem_obj$add_molecular_classes()
+      }
+
       waiter_ann$hide()
 
       !is.null(MTandem_obj$annotation_merged)
     }) %>%
       bindEvent(input$annotate)
 
-
-
     output$annotate_results <- renderUI({
       req(has_annot())
 
       group_var <- MTandem_obj$get_groups()
 
-      headerbox_factory(
-        title = 'Annotation Results',
-        status = 'success',
-        width = 12,
-        content = tagList(
-          fluidRow(
-            col_6(selectInput(ns('color_by'), 'Color by', choices = group_var))
-          ),
-          fluidRow(
-            col_6(plotOutput(ns('spectra_plot'))),
-            col_6(plotOutput(ns('mirror_plot')))
-          ),
-          col_12(DT::DTOutput(ns('merged_annot')))
+      if(solo){
+        headerbox_factory(
+          title = 'Annotation Results',
+          status = 'success',
+          width = 12,
+          content = tagList(
+            fluidRow(
+              col_12(plotOutput(ns('mirror_plot')))
+            ),
+            col_12(DT::DTOutput(ns('merged_annot')))
 
+          )
         )
-      )
+      } else {
+        headerbox_factory(
+          title = 'Annotation Results',
+          status = 'success',
+          width = 12,
+          content = tagList(
+            fluidRow(
+              col_6(selectInput(ns('color_by'), 'Color by', choices = group_var))
+            ),
+            fluidRow(
+              col_6(plotOutput(ns('spectra_plot'))),
+              col_6(plotOutput(ns('mirror_plot')))
+            ),
+            col_12(DT::DTOutput(ns('merged_annot')))
+
+          )
+        )
+      }
     })
 
     output$merged_annot <- DT::renderDT({
@@ -159,6 +233,8 @@ mod_annotation_server <- function(id, MTandem_obj, solo = FALSE){
                         ms1_ppm_error = round(ms1_ppm_error, 4),
                         ms1_score = format(ms1_score, scientific = TRUE, digits = 2),
                         ms2_score = round(ms2_score, 2))
+
+
       }
     },
     fillContainer = TRUE,

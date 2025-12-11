@@ -43,7 +43,7 @@ mod_load_data_ui <- function(id) {
 #' load_data Server Functions
 #'
 #' @noRd
-mod_load_data_server <- function(id, MTandem_obj){
+mod_load_data_server <- function(id, MTandem_obj, mc = FALSE){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
@@ -187,9 +187,16 @@ mod_load_data_server <- function(id, MTandem_obj){
     # Button to move to next step
     observe({
       req(is_loaded())
+
+      if(mc){
+        id = 'next_buttonLD_mc'
+      } else {
+        id = 'next_buttonLD'
+      }
+
       output$nxt_bttn <- renderUI({
         if(is(MTandem_obj$data, 'MsExperiment')){
-          next_button(id = 'next_buttonLD')
+          next_button(id = id)
         }
       })
     }) %>%

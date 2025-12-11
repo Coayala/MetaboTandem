@@ -22,10 +22,10 @@ apply_normalization <- function(abun_table,
                                                  transform_data = log_transform),
                             median = median_norm(abun_table,
                                                  transform_data = log_transform),
-                            mean = median_norm(abun_table,
-                                               transform_data = log_transform),
-                            max = median_norm(abun_table,
-                                              transform_data = log_transform),
+                            mean = mean_norm(abun_table,
+                                             transform_data = log_transform),
+                            max = max_norm(abun_table,
+                                           transform_data = log_transform),
                             vsn = median_norm(abun_table),
                             cycloess = median_norm(abun_table),
                             none = abun_table)
@@ -135,6 +135,7 @@ max_norm <- function(abun_table, transform_data = TRUE){
     lambda <- min(abun_table[abun_table != 0])
     norm.abun_table <- log10(abun_table + sqrt(abun_table^2 + lambda))
   }
+
   return(norm.abun_table)
 }
 

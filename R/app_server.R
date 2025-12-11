@@ -34,9 +34,30 @@ app_server <- function(input, output, session) {
     shinyjs::toggle('home')
   })
 
+  observeEvent({input$goHome_stats; input$goStats}, {
+    shinyjs::toggle('stats_app')
+    shinyjs::toggle('home')
+
+    # shinyjs::runjs("$('a[data-value=\"stats_setup_solo\"]').tab('show');")
+  })
+
+  observeEvent({input$goHome_Metaclean; input$goMetaclean}, {
+    shinyjs::toggle('metaclean_app')
+    shinyjs::toggle('home')
+  })
+
   # Main pipeline ----
   ## Initializing data object ----
+
+  ### Object for main pipeline
   MTandem_obj <- MetaboTandem$new()
+  ### Object for solo analysis
+  MTandem_obj_solo <- MetaboTandem$new()
+  ### Object for metaclean
+  MTandem_obj_mc <- MetaboTandem$new()
+
+  # SOLO Autotuner
+  mod_autotuner_server("autotuner_1", MTandem_obj_solo)
 
   ## Load data ----
   mod_load_data_server("load_data_1", MTandem_obj)
@@ -100,7 +121,8 @@ app_server <- function(input, output, session) {
   })
 
 
-  # Statistical Analysis - Setup ----
+  # Statistical Analysis ----
+  ##  Setup ----
   mod_stats_setup_server("stats_setup_1", MTandem_obj)
   ### Back button statistical setup
   observeEvent(input$back_buttonSS ,{
@@ -115,24 +137,24 @@ app_server <- function(input, output, session) {
     updateTabItems(session, "sidebarID", "stats_univ")
   })
 
-  # Statistical Analysis - Univariate ----
+  ## Univariate ----
   mod_stats_univ_server("stats_univ_1", MTandem_obj)
-  ### Back button statistical setup
+  ### Back button to statistical setup
   observeEvent(input$back_buttonSU ,{
     updateTabItems(session, "sidebarID", "stats_setup")
   })
-  ### Go to statistical analysis in gap filling server
+  ### Go to multi from univ
   observeEvent(input$SU_multi,{
     updateTabItems(session, "sidebarID", "stats_multi")
   })
 
-  # Statistical Analysis - Multivariate ----
+  ## Multivariate ----
   mod_stats_multi_server("stats_multi_1", MTandem_obj)
   ### Back button statistical setup
   observeEvent(input$back_buttonSM ,{
     updateTabItems(session, "sidebarID", "stats_setup")
   })
-  ### Go to statistical analysis in gap filling server
+  ### Go to univ from multi
   observeEvent(input$SM_univ,{
     updateTabItems(session, "sidebarID", "stats_univ")
   })
@@ -145,32 +167,75 @@ app_server <- function(input, output, session) {
   })
 
 
-  #Stand_alone annotation logic ----
-  mod_annotation_server("solo_annotation_1", solo = TRUE)
+  # SOLO annot ----
+  mod_annotation_server("solo_annotation_1", MTandem_obj_solo, solo = TRUE)
 
-  #
-  # observeEvent(input$Go_to_Annotation ,{
-  #   updateTabItems(session, "sidebarID", "dbs_annot")
-  # })
-  #
-  #
-  # #go_to_StatisticalAnalysisLogic
-  # observeEvent(input$Go_to_StatisticalAnalysis ,{
-  #   updateTabItems(session, "sidebarID", "stats-setup")
-  # })
-  #
-  #
-  #
-  # # Running the MGF annotation module
-  #
-  # dbAnnotationServer('solo_annotation', new_data = TRUE)
-  #
-  # # Running the Autotuner server
-  #
-  # autotunerServer('use_autotuner')
 
-  # Running the main pipeline mode
+  # SOLO stats ----
+  ## Setup ----
+  mod_stats_setup_server("solo_stats_setup_1", MTandem_obj_solo, solo = TRUE)
+  ### Go to status multivariate after setup
+  observeEvent(input$SS_multi_solo,{
+    updateTabItems(session, "sidebar_stats", "stats_multi_solo")
+  })
+  ### Go to status univariate after setup
+  observeEvent(input$SS_univ_solo,{
+    updateTabItems(session, "sidebar_stats", "stats_univ_solo")
+  })
+  ## Multivariate SOLO ----
+  mod_stats_multi_server("solo_stats_multi_1", MTandem_obj_solo)
+  ### Back button to statistical setup
+  observeEvent(input$back_buttonSM_solo ,{
+    updateTabItems(session, "sidebar_stats", "stats_setup_solo")
+  })
+  ### Go to univ from multi SOLO
+  observeEvent(input$SM_univ_solo,{
+    updateTabItems(session, "sidebar_stats", "stats_univ_solo")
+  })
+  ## Univariate SOLO----
+  mod_stats_univ_server("solo_stats_univ_1", MTandem_obj_solo)
+  ### Back button to statistical setup
+  observeEvent(input$back_buttonSU_solo ,{
+    updateTabItems(session, "sidebar_stats", "stats_setup_solo")
+  })
+  ### Go to multi from univ
+  observeEvent(input$SU_multi_solo,{
+    updateTabItems(session, "sidebar_stats", "stats_multi_solo")
+  })
 
-  ## Pre-processing modules
+  # METACLEAN module ----
+
+  ## Load data ----
+  mod_load_data_server("mc_load_data_1", MTandem_obj_mc)
+  ### Next button logic in loadData server
+  observeEvent(input$next_buttonLD ,{
+    updateTabItems(session, "sidebar_metaclean", "p_pick_mc")
+  })
+
+  ## Peak picking ----
+  mod_peak_picking_server("mc_peak_picking_1", MTandem_obj_mc)
+  ### Back button logic in peak picking server
+  observeEvent(input$back_buttonPP ,{
+    updateTabItems(session, "sidebar_metaclean", "load_data_mc")
+  })
+  ### Next button logic in peak picking server
+  observeEvent(input$next_buttonPP ,{
+    updateTabItems(session, "sidebar_metaclean", "align_mc")
+  })
+
+
+  ## Alignment ----
+  mod_alignment_server("mc_alignment_1", MTandem_obj_mc)
+  ### Back button logic in alignment server
+  observeEvent(input$back_buttonAL ,{
+    updateTabItems(session, "sidebar_metaclean", "p_pick_mc")
+  })
+  ### Next button logic in alignment server
+  observeEvent(input$next_buttonAL ,{
+    updateTabItems(session, "sidebar_metaclean", "train_mc")
+  })
+
+  ## Training ----
+  mod_metaclean_server("metaclean_1", MTandem_obj_mc)
 
 }

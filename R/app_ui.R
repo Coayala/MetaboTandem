@@ -37,14 +37,25 @@ app_ui <- function(request) {
     # Autotuner mode
     div(id = 'autotuner_app',
         style = 'display:none',
-        # autotunerUI('use_autotuner')
+        mod_autotuner_ui("autotuner_1")
     ),
 
     # MGF annotation mode
     div(id = 'annotate_app',
         style = 'display:none',
-        mod_annotation_ui("solo_annotation_1")
+        annotation_app_ui()
+    ),
+
+    div(id = 'stats_app',
+        style = 'display:none',
+        statistics_app_ui()
+    ),
+
+    div(id = 'metaclean_app',
+        style = 'display:none',
+        metaclean_app_ui()
     )
+
   )
 }
 

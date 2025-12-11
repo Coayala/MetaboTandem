@@ -23,6 +23,18 @@ load_dataframe <- function(file){
 }
 
 
+load_mgf_spectra <- function(file){
+
+  spectra_var_map <- c(feature_id = 'TITLE',
+                       MsBackendMgf::spectraVariableMapping(MsBackendMgf::MsBackendMgf()))
+
+  mgf_spectra <- Spectra::Spectra(file,
+                                  source = MsBackendMgf::MsBackendMgf(),
+                                  mapping = spectra_var_map)
+  return(mgf_spectra)
+}
+
+
 #' Load Metadata
 #'
 #' Function to load metadata
@@ -34,7 +46,7 @@ load_dataframe <- function(file){
 #' @return A dataframe with metadata
 #'
 #' @export
-load_metadata <- function(metadata_file){
+load_metadata <- function(metadata_file, autotuner = FALSE){
 
   metadata <- load_dataframe(metadata_file)
 
@@ -43,6 +55,15 @@ load_metadata <- function(metadata_file){
   } else if(ncol(metadata) < 2){
     stop('Metadata file requires at least two columns: "SampleID", and at least
          one other column with sample information')
+  } else if(autotuner){
+
+    if(!('FileName' %in% colnames(metadata))){
+      stop('Metadata file requires at least three columns: "SampleID", "Filename", and at least
+         one other column with sample information')
+    } else {
+      return(metadata)
+    }
+
   } else {
     return(metadata)
   }

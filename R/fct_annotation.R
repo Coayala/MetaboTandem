@@ -341,7 +341,7 @@ plot_mirror <- function(matches_list,
 #'
 #' @return Dataframe with molecular classification
 #'
-get_molecular_class <- function(annotation_table){
+run_classyfire <- function(annotation_table){
 
   inchikeys <- annotation_table %>%
     dplyr::select(target_inchikey) %>%
@@ -388,15 +388,13 @@ get_molecular_class <- function(annotation_table){
 #' @return The return value, if any, from executing the function.
 #'
 #' @noRd
-annotate_with_sirius <- function(feature_spectra,
-                                 output_prefix,
-                                 cores) {
+run_sirius <- function(feature_spectra,
+                       output_prefix,
+                       cores) {
 
   # Exporting spectra
   spectra_var_map <- c(feature_id = 'TITLE',
                        MsBackendMgf::spectraVariableMapping(MsBackendMgf::MsBackendMgf()))
-
-
 
   print('Exporting mgf')
   Spectra::export(feature_spectra, MsBackendMgf::MsBackendMgf(),
@@ -415,96 +413,166 @@ annotate_with_sirius <- function(feature_spectra,
                    'write-summaries',
                    '--output', paste0(getwd(), '/', output_prefix, '_summary')))
 
+
+  canopus_res <- readr::read_tsv(
+    paste0(getwd(), '/', output_prefix, '_summary/canopus_formula_summary.tsv'
+    ))
+
+  return(canopus_res)
+
 }
 
-#' Add CANOPUS classification
+#' Add molecular classes
 #'
 #' @description Function to add molecular classes predicted by CANOPUS
 #' @param annotation_table Dataframe with annotations
 #'
 #' @return Dataframe with molecular classification
 #'
-add_canopus <- function(annotation_table,
-                        molclass_table,
-                        canopus_summary_file){
+add_molecular_classes <- function(annotation_table,
+                                  classyfire_classes = NULL,
+                                  canopus_classes = NULL){
 
-  canopus_classes <- readr::read_tsv(canopus_summary_file)
+  if(!is.null(canopus_classes)){
+    canopus_formulas <- canopus_classes %>%
+      dplyr::mutate(FeatureID = stringr::str_extract(mappingFeatureId, 'FT[0-9]+')) %>%
+      dplyr::filter(adduct == '[M + H]+') %>%
+      dplyr::select(FeatureID, canopus_formula = molecularFormula)
 
-  canopus_formulas <- canopus_classes %>%
-    dplyr::mutate(FeatureID = stringr::str_extract(mappingFeatureId, 'FT[0-9]+')) %>%
-    dplyr::filter(adduct == '[M + H]+') %>%
-    dplyr::select(FeatureID, canopus_formula = molecularFormula)
+    canopus_processed <- canopus_classes %>%
+      dplyr::filter(adduct == '[M + H]+') %>%
+      dplyr::mutate(FeatureID = stringr::str_extract(mappingFeatureId, 'FT[0-9]+')) %>%
+      dplyr::select(FeatureID, target_formula = molecularFormula,
+                    superclass = `ClassyFire#superclass`, class = `ClassyFire#class`,
+                    subclass = `ClassyFire#subclass`, `level 5` = `ClassyFire#level 5`)
+  }
 
-  canopus_processed <- canopus_classes %>%
-    dplyr::filter(adduct == '[M + H]+') %>%
-    dplyr::mutate(FeatureID = stringr::str_extract(mappingFeatureId, 'FT[0-9]+')) %>%
-    dplyr::select(FeatureID, target_formula = molecularFormula,
-                  superclass = `ClassyFire#superclass`, class = `ClassyFire#class`,
-                  subclass = `ClassyFire#subclass`, `level 5` = `ClassyFire#level 5`)
-
-  # Checking canopus_results
+  # Classification of features annotated based on their MS2
 
   class_from_ms2 <- annotation_table %>%
-    dplyr::filter(annotation_from_MS2) %>%
-    dplyr::inner_join(molclass_table, by = c('target_inchikey' = 'inchikey')) %>%
-    dplyr::left_join(canopus_formulas, by = c('feature_id' = 'FeatureID')) %>%
-    dplyr::mutate(
-      annotation_notes = dplyr::case_when(
-        target_formula == canopus_formula ~ 'Annotation based in MS2 spectral library. Match with SIRIUS predicted formula',
-        TRUE ~ 'Annotation based in MS2 spectral library'
-      ),
-      classification_notes = 'Classification based on Classyfire') %>%
-    dplyr::select(-canopus_formula)
+    dplyr::filter(annotation_from_MS2)
+
+  if(!is.null(canopus_classes) & !is.null(classyfire_classes)){
+
+    class_from_ms2_both <- class_from_ms2 %>%
+      dplyr::inner_join(classyfire_classes, by = c('target_inchikey' = 'inchikey')) %>%
+      dplyr::left_join(canopus_formulas, by = c('feature_id' = 'FeatureID')) %>%
+      dplyr::mutate(
+        annotation_notes = dplyr::case_when(
+          target_formula == canopus_formula ~ 'Annotation based in MS2 spectral database. Match with SIRIUS predicted formula',
+          TRUE ~ 'Annotation based in MS2 spectral database'
+        ),
+        classification_notes = 'Classification with Classyfire based on annotated InChIKey') %>%
+      dplyr::select(-canopus_formula)
 
 
-  class_from_ms2_canopus <- annotation_table %>%
-    dplyr::filter(annotation_from_MS2) %>%
-    dplyr::filter(!(feature_id %in% class_from_ms2$feature_id)) %>%
-    dplyr::left_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>%
-    dplyr::mutate(
-      annotation_notes = dplyr::case_when(
-        !is.na(superclass) ~ 'Annotation based in MS2 spectral library. Match with SIRIUS predicted formula',
-        TRUE ~ 'Annotation based in MS2 spectral library'
-      ),
-      classification_notes = dplyr::case_when(
-        !is.na(superclass) ~ 'Classification based on CANOPUS',
-        TRUE ~ 'No classification'
-      ))
+    class_from_ms2_canopus <- class_from_ms2 %>%
+      dplyr::filter(!(feature_id %in% class_from_ms2_both$feature_id)) %>%
+      dplyr::left_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>%
+      dplyr::mutate(
+        annotation_notes = dplyr::case_when(
+          !is.na(superclass) ~ 'Annotation based in MS2 spectral databases. Match with SIRIUS predicted formula',
+          TRUE ~ 'Annotation based in MS2 spectral databases'
+        ),
+        classification_notes = dplyr::case_when(
+          !is.na(superclass) ~ 'Classification with CANOPUS based on SIRIUS fragmentation trees',
+          TRUE ~ 'No classification'
+        ))
 
-  class_from_ms1_canopus <- annotation_table %>%
-    dplyr::filter(!annotation_from_MS2,
-                  !is.na(ms1_score)) %>%
-    dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>%
-    dplyr::inner_join(molclass_table, by = c('target_inchikey' = 'inchikey', 'superclass',
-                                          'class', 'subclass', 'level 5')) %>%
-    dplyr::mutate(annotation_notes = 'Annotation based on m/z matches. Match with SIRIUS predicted formula',
-                  classification_notes = 'Classification based on CANOPUS')
+    class_from_ms2_final <- rbind(class_from_ms2_both,
+                                  class_from_ms2_canopus)
+
+  } else if(!is.null(canopus_classes)){
+
+    class_from_ms2_final <- class_from_ms2 %>%
+      dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>%
+      dplyr::left_join(canopus_formulas, by = c('feature_id' = 'FeatureID')) %>%
+      dplyr::mutate(
+        annotation_notes = 'Annotation based in MS2 spectral databases. Match with SIRIUS predicted formula',
+        classification_notes = 'Classification with CANOPUS based on SIRIUS fragmentation trees'
+      ) %>%
+      dplyr::select(-canopus_formula)
+
+  } else if(!is.null(classyfire_classes)) {
+
+    class_from_ms2_final <- class_from_ms2 %>%
+      dplyr::inner_join(classyfire_classes, by = c('target_inchikey' = 'inchikey')) %>%
+      dplyr::mutate(
+        annotation_notes = 'Annotation based in MS2 spectral database',
+        classification_notes = 'Classification with Classyfire based on annotated InChIKey')
+  }
+
+  # Classification of features annotated based on their MS1 (m/z)
 
   class_from_ms1 <- annotation_table %>%
     dplyr::filter(!annotation_from_MS2,
-                  !is.na(ms1_score)) %>%
-    dplyr::filter(!(feature_id %in% class_from_ms1_canopus$feature_id)) %>%
-    dplyr::inner_join(molclass_table, by = c('target_inchikey' = 'inchikey')) %>%
-    dplyr::mutate(annotation_notes = 'Annotation based on m/z matches. Match with SIRIUS predicted formula',
-                  classification_notes = 'Classification based on Classyfire')
+                  !is.na(ms1_score))
 
-  class_from_canopus_only <- annotation_table %>%
-    dplyr::select(-target_formula) %>%
-    dplyr::filter(!(feature_id %in% c(class_from_ms1_canopus$feature_id,
-                                      class_from_ms1$feature_id,
-                                      class_from_ms2$feature_id,
-                                      class_from_ms2_canopus$feature_id))) %>%
-    dplyr::mutate(dplyr::across(dplyr::contains('target'), ~ NA)) %>%
-    dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID')) %>%
-    dplyr::mutate(annotation_notes = 'No database match. Formula predicted by SIRIUS',
-                  classification_notes = 'Classification based on CANOPUS')
+  if(!is.null(canopus_classes) & !is.null(classyfire_classes)){
 
-  class_ready <- rbind(class_from_ms2,
-                       class_from_ms2_canopus,
-                       class_from_ms1,
-                       class_from_ms1_canopus,
-                       class_from_canopus_only) %>%
-    dplyr::select(-mz, -rtime)
+    class_from_ms1_canopus <- class_from_ms1 %>%
+      dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>%
+      dplyr::inner_join(classyfire_classes, by = c('target_inchikey' = 'inchikey', 'superclass',
+                                                   'class', 'subclass', 'level 5')) %>%
+      dplyr::mutate(annotation_notes = 'Annotation based on m/z matches. Match with SIRIUS predicted formula.',
+                    classification_notes = 'Classification with CANOPUS based on SIRIUS fragmentation trees')
 
-  return(class_ready)
+    class_from_ms1_classy <- class_from_ms1 %>%
+      dplyr::filter(!(feature_id %in% class_from_ms1_canopus$feature_id)) %>%
+      dplyr::inner_join(classyfire_classes, by = c('target_inchikey' = 'inchikey')) %>%
+      dplyr::mutate(annotation_notes = 'Annotation based on m/z matches.',
+                    classification_notes = 'Classification with Classyfire based on annotated InChIKey')
+
+
+    class_from_ms1_final <- rbind(class_from_ms1_canopus,
+                                  class_from_ms1_classy)
+
+
+  } else if(!is.null(canopus_classes)){
+
+    class_from_ms1_final <- class_from_ms1 %>%
+      dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID', 'target_formula')) %>%
+      dplyr::mutate(annotation_notes = 'Annotation based on m/z matches. Match with SIRIUS predicted formula.',
+                    classification_notes = 'Classification with CANOPUS based on SIRIUS fragmentation trees')
+
+
+  } else if(!is.null(classyfire_classes)) {
+
+    class_from_ms1_final <- class_from_ms1 %>%
+      dplyr::inner_join(classyfire_classes, by = c('target_inchikey' = 'inchikey')) %>%
+      dplyr::mutate(annotation_notes = 'Annotation based on m/z matches.',
+                    classification_notes = 'Classification with Classyfire based on annotated InChIKey')
+
+
+  }
+
+  if(!is.null(canopus_classes)){
+    class_from_canopus_only <- annotation_table %>%
+      dplyr::select(-target_formula) %>%
+      dplyr::filter(!(feature_id %in% c(class_from_ms1_final$feature_id,
+                                        class_from_ms2_final$feature_id))) %>%
+      dplyr::mutate(dplyr::across(dplyr::contains('target'), ~ NA)) %>%
+      dplyr::inner_join(canopus_processed, by = c('feature_id' = 'FeatureID')) %>%
+      dplyr::mutate(annotation_notes = 'No database match. Formula predicted by SIRIUS',
+                    classification_notes = 'Classification based on CANOPUS')
+
+    class_ready <- rbind(class_from_ms2_final,
+                         class_from_ms1_final,
+                         class_from_canopus_only) %>%
+      dplyr::select(-mz, -rtime)
+
+  } else {
+
+    class_ready <- rbind(class_from_ms2_final,
+                         class_from_ms1_final) %>%
+      dplyr::select(-mz, -rtime)
+  }
+
+  final <- annotation_table %>%
+    dplyr::select(feature_id, mz, rtime) %>%
+    dplyr::left_join(class_ready, by = 'feature_id')
+
+
+
+  return(final)
 }
