@@ -3,7 +3,7 @@ pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
   example: example.html
-last_built: 2025-12-11T04:46Z
+last_built: 2026-02-18T07:35Z
 urls:
   reference: https://coayala.github.io/MetaboTandem/reference
   article: https://coayala.github.io/MetaboTandem/articles
