@@ -19,8 +19,8 @@ mod_metaclean_ui <- function(id) {
         fluidRow(
           col_6(numericInput(ns('n_subset'),
                              'Number of peaks to label',
-                             value = 200,
-                             min = 100,
+                             value = 30,
+                             min = 30,
                              max = 1000,
                              step = 10)),
           col_6((shinyWidgets::numericInputIcon(ns('prop_training'),
@@ -33,14 +33,14 @@ mod_metaclean_ui <- function(id) {
           ),
           fluidRow(
             col_6(),
-            col_6(shinyWidgets::actionBttn(
-              inputId = ns('start_mc'),
-              label = 'Start MetaClean',
-              style = 'jelly',
-              color = 'primary',
-              size = 'sm',
-              block = TRUE
-            ))
+            col_6(
+              shinyWidgets::actionBttn(
+                inputId = ns('start_mc'),
+                label = 'Start MetaClean',
+                style = 'jelly',
+                color = 'primary',
+                size = 'sm',
+                block = TRUE))
           )
         )
       )
@@ -66,7 +66,8 @@ mod_metaclean_server <- function(id, MTandem_obj){
         id = ns('metaclean_resbox'),
         content = tagList(
           fluidRow(
-            uiOutput(ns('chrom_loop'))
+            uiOutput(ns('chrom_loop')),
+            uiOutput(ns('cross_val_res'))
           )
         )
       )
@@ -89,50 +90,29 @@ mod_metaclean_server <- function(id, MTandem_obj){
       bindEvent(input$start_mc)
 
     rv <- reactiveValues(
-      sel_peaks = NULL,
-      chroms = NULL,
-      xcms_fill = NULL,
-      xcms_set = NULL,
-      labels = NULL,
       idx = 1,
+      sel_length = 0,
+      phase = 'INIT',
+      has_models = FALSE,
+      has_final_model = FALSE
     )
 
     start_qc <- reactive({
-      rv$idx <- 1
-      ft_def <- xcms::featureDefinitions(MTandem_obj$data)
-
-      xcms_set <- as(xcms::filterMsLevel(MTandem_obj$data, msLevel = 1), 'xcmsSet')
-      xcms::sampclass(xcms_set) <- as.factor(MTandem_obj$metadata[[2]])
-
-      rv$xcms_set <- xcms_set
-
-      rv$xcms_fill <- xcms::fillPeaks(xcms_set)
-
-      peak_group_names_available <- data.frame(
-        FeatureID = rownames(ft_def),
-        group_name = xcms::groupnames(xcms_set)
-      ) %>%
-        dplyr::filter(group_name %in% xcms::groupnames(rv$xcms_fill))
-
-      rv$sel_peaks <- sample(peak_group_names_available$FeatureID, input$n_subset) %>%
-        stringr::str_remove('FT') %>%
-        as.numeric
-
-      rv$chroms <- xcms::featureChromatograms(MTandem_obj$data,
-                                              features = MTandem_obj$feature_definitions$feature_id[rv$sel_peaks],
-                                              filled = TRUE)
-
-      rv$labels <- data.frame(
-        feature_id = MTandem_obj$feature_definitions$feature_id[rv$sel_peaks]
+      notid <- showNotification('Preparing data for cleaning...',
+                                duration = NULL, closeButton = FALSE)
+      on.exit(removeNotification(notid), add = TRUE)
+      MTandem_obj$prepare_for_cleaning(n_subset = input$n_subset)
+      MTandem_obj$labels_shiny <- data.frame(
+        feature_id = MTandem_obj$feature_definitions$feature_id[MTandem_obj$prepare_obj$sel_peaks]
       ) %>%
         dplyr::mutate(Label = NA)
-
-      return(!is.null(rv$chroms))
+      rv$phase <- 'QC'
+      rv$sel_length <- input$n_subset
     }) %>%
       bindEvent(has_filled_mc())
 
     output$chrom_loop <- renderUI({
-      if(rv$idx < length(rv$sel_peaks)){
+      if(rv$idx <= rv$sel_length){
         tagList(
           col_12(plotOutput(ns('chrom_plot'))),
           col_6(shinyWidgets::actionBttn(ns('fail_btn'),
@@ -148,41 +128,169 @@ mod_metaclean_server <- function(id, MTandem_obj){
                                          color = 'success',
                                          block = TRUE,
                                          size = 'sm',
-                                         icon = icon('check'))),
-          col_12(tableOutput(ns('labels')))
+                                         icon = icon('check')))
         )
       }
-    }) %>%
-      bindEvent(start_qc())
+    })
 
     output$chrom_plot <- renderPlot({
-      req(rv$chroms)
+      req(MTandem_obj$prepare_obj$chroms)
       i <- rv$idx
-      ft_id <- rv$labels$feature_id[i]
-      xcms::plot(rv$chroms[i,], main = paste0("Feature: ", ft_id))
+      ft_id <- MTandem_obj$labels_shiny$feature_id[i]
+      xcms::plot(MTandem_obj$prepare_obj$chroms[i,], main = paste0(i, ". Feature: ", ft_id))
     })
 
     observeEvent(input$pass_btn, {
       i <- rv$idx
-      rv$labels$Label[i] <- "Pass"
+      MTandem_obj$labels_shiny$Label[i] <- "Pass"
 
-      if (rv$idx < length(rv$sel_peaks)) {
+      if (rv$idx < rv$sel_length) {
         rv$idx <- rv$idx + 1
       } else {
+
+        MTandem_obj$labels$labels_train <-  MTandem_obj$labels_shiny[
+          sample(1:nrow(MTandem_obj$labels_shiny), nrow(MTandem_obj$labels_shiny) * input$prop_training/100),
+        ]
+
+        MTandem_obj$labels$labels_train <- MTandem_obj$labels$labels_train %>%
+          dplyr::mutate(EICNo = stringr::str_remove(feature_id, 'FT'),
+                        EICNo = as.numeric(EICNo))
+
+        MTandem_obj$labels$labels_test <-  MTandem_obj$labels_shiny %>%
+          dplyr::filter(!feature_id %in% MTandem_obj$labels$labels_train$feature_id) %>%
+          dplyr::mutate(EICNo = stringr::str_remove(feature_id, 'FT'),
+                        EICNo = as.numeric(EICNo))
+
         showNotification("QC Finished!", type = "message")
+
+        rv$phase <- 'CROSSVAL'
+
+        print(MTandem_obj$labels)
       }
     })
 
     observeEvent(input$fail_btn, {
       i <- rv$idx
-      rv$labels$Label[i] <- "Fail"
+      MTandem_obj$labels_shiny$Label[i] <- "Fail"
 
-      if (rv$idx < length(rv$sel_peaks)) {
+      if (rv$idx < rv$sel_length) {
         rv$idx <- rv$idx + 1
       } else {
+
+        MTandem_obj$labels$labels_train <-  MTandem_obj$labels_shiny[
+          sample(1:nrow(MTandem_obj$labels_shiny), nrow(MTandem_obj$labels_shiny) * input$prop_training/100),
+        ]
+
+        MTandem_obj$labels$labels_train <- MTandem_obj$labels$labels_train %>%
+          dplyr::mutate(EICNo = stringr::str_remove(feature_id, 'FT'),
+                        EICNo = as.numeric(EICNo))
+
+        MTandem_obj$labels$labels_test <-  MTandem_obj$labels_shiny %>%
+          dplyr::filter(!feature_id %in% MTandem_obj$labels$labels_train$feature_id) %>%
+          dplyr::mutate(EICNo = stringr::str_remove(feature_id, 'FT'),
+                        EICNo = as.numeric(EICNo))
+
         showNotification("QC Finished!", type = "message")
+
+        rv$phase <- 'CROSSVAL'
+
+        print(MTandem_obj$labels)
       }
     })
+
+    observeEvent(rv$phase, {
+
+      req(rv$phase == "CROSSVAL")
+      MTandem_obj$get_models()
+
+      MTandem_obj$evaluate_models()
+
+      rv$has_models <- TRUE
+
+    }, ignoreInit = TRUE)
+
+    output$cross_val_res <- renderUI({
+      if(rv$has_models){
+        mod_names <- purrr::map(MTandem_obj$model_eval$cd_plots$InterMet$rank_matrices, names) %>%
+          purrr::reduce(`c`) %>%
+          unique()
+
+        tagList(
+          col_12(plotOutput(ns('CD_plots'))),
+          col_6(selectizeInput(ns('selected_model'), 'Selected model to train',
+                               choices = mod_names)),
+          col_6(shinyWidgets::actionBttn(
+            inputId = ns('train_final'),
+            label = 'Train model',
+            style = 'jelly',
+            color = 'primary',
+            size = 'sm',
+            block = TRUE
+          )),
+          col_12(uiOutput(ns('final_stats')))
+        )
+      }
+    })
+
+    output$CD_plots <- renderPlot({
+
+      plot(MTandem_obj$model_eval$cd_plots$InterMet$plots[['Accuracy']] +
+             labs(title = 'Accuracy') +
+             MTandem_obj$model_eval$cd_plots$InterMet$plots[['Fail_FScore']] +
+             labs(title = 'Fail FScore') +
+             MTandem_obj$model_eval$cd_plots$InterMet$plots[['Pass_FScore']] +
+             labs(title = 'Pass FScore') +
+             patchwork::plot_layout(ncol = 1) &
+             theme(plot.title = element_text(face = 'bold', hjust = 0.5)))
+
+    })
+
+    observeEvent(input$train_final, {
+
+      print('Training final model')
+      print(input$selected_model)
+      print(names(MTandem_obj$models$models))
+      MTandem_obj$train_final_model(selected_model = input$selected_model)
+
+      rv$has_final_model <- TRUE
+
+    }, ignoreInit = TRUE)
+
+
+    output$final_stats <- renderUI({
+      if(rv$has_final_model){
+        tagList(
+          hr(),
+          h2('Final Model Test results'),
+          col_12(tableOutput(ns('final_model_stats'))),
+          col_6(shinyWidgets::downloadBttn(ns('down_final_model'),
+                                           'Save MetaClean model (.rds)',
+                                           style = 'jelly',
+                                           color = 'warning',
+                                           block = TRUE,
+                                           size = 'xs',
+                                           icon = icon('file-export')))
+
+        )
+      }
+
+    })
+
+    output$final_model_stats <- renderTable({
+      req(MTandem_obj$final_mc_model)
+      test_metrics <- MTandem_obj$test_final_model()
+      test_metrics$eval_metrics
+
+    })
+
+    output$down_final_model <- downloadHandler(
+      filename = function(){
+        paste('metaclean_model.rds')
+      },
+      content = function(file){
+        readr::write_rds(MTandem_obj$final_mc_model, file)
+      }
+    )
 
   })
 }

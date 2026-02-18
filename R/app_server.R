@@ -14,11 +14,6 @@ app_server <- function(input, output, session) {
   shinyjs::show('home')
 
   # Change from the home screen to any of the other modes
-  observeEvent({input$goHome_database; input$goDatabase}, {
-    shinyjs::toggle('database_app')
-    shinyjs::toggle('home')
-  })
-
   observeEvent({input$goHome_main; input$goMain}, {
     shinyjs::toggle('main_pipeline')
     shinyjs::toggle('home')
@@ -26,6 +21,11 @@ app_server <- function(input, output, session) {
 
   observeEvent({input$goHome_autotuner; input$goAutotuner}, {
     shinyjs::toggle('autotuner_app')
+    shinyjs::toggle('home')
+  })
+
+  observeEvent({input$goHome_databases; input$goDatabase}, {
+    shinyjs::toggle('database_app')
     shinyjs::toggle('home')
   })
 
@@ -46,8 +46,7 @@ app_server <- function(input, output, session) {
     shinyjs::toggle('home')
   })
 
-  # Main pipeline ----
-  ## Initializing data object ----
+  # Initializing data object ----
 
   ### Object for main pipeline
   MTandem_obj <- MetaboTandem$new()
@@ -56,9 +55,13 @@ app_server <- function(input, output, session) {
   ### Object for metaclean
   MTandem_obj_mc <- MetaboTandem$new()
 
-  # SOLO Autotuner
+  # Autotuner ----
   mod_autotuner_server("autotuner_1", MTandem_obj_solo)
 
+  # Databases ----
+  mod_databases_server("databases_1")
+
+  # Main app ----
   ## Load data ----
   mod_load_data_server("load_data_1", MTandem_obj)
   ### Next button logic in loadData server
@@ -121,8 +124,8 @@ app_server <- function(input, output, session) {
   })
 
 
-  # Statistical Analysis ----
-  ##  Setup ----
+  ## Statistical Analysis ----
+  ###  Setup ----
   mod_stats_setup_server("stats_setup_1", MTandem_obj)
   ### Back button statistical setup
   observeEvent(input$back_buttonSS ,{
@@ -137,7 +140,7 @@ app_server <- function(input, output, session) {
     updateTabItems(session, "sidebarID", "stats_univ")
   })
 
-  ## Univariate ----
+  ### Univariate ----
   mod_stats_univ_server("stats_univ_1", MTandem_obj)
   ### Back button to statistical setup
   observeEvent(input$back_buttonSU ,{
@@ -148,7 +151,7 @@ app_server <- function(input, output, session) {
     updateTabItems(session, "sidebarID", "stats_multi")
   })
 
-  ## Multivariate ----
+  ### Multivariate ----
   mod_stats_multi_server("stats_multi_1", MTandem_obj)
   ### Back button statistical setup
   observeEvent(input$back_buttonSM ,{
@@ -159,7 +162,7 @@ app_server <- function(input, output, session) {
     updateTabItems(session, "sidebarID", "stats_univ")
   })
 
-  # Annotations logic ----
+  ## Annotations logic ----
   mod_annotation_server("annotation_1", MTandem_obj)
   ### Back button tp gap filling
   observeEvent(input$back_buttonAN ,{

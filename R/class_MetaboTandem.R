@@ -24,6 +24,12 @@ MetaboTandem <- R6::R6Class(
     annotation_with_class = NULL,
     feature_chromatograms = NULL,
     autotuner_obj = NULL,
+    prepare_obj = NULL,
+    labels = NULL,
+    labels_shiny = NULL,
+    models = NULL,
+    model_eval = NULL,
+    final_mc_model = NULL,
     load_metadata = function(metadata_file, autotuner = FALSE){
       self$metadata <- load_metadata(metadata_file,
                                      autotuner = autotuner)
@@ -389,6 +395,52 @@ MetaboTandem <- R6::R6Class(
     extract_autotuner = function(){
       extract_autotuner(self$autotuner_obj,
                         massThr = 0.005)
+    },
+    prepare_for_cleaning = function(n_subset){
+      self$prepare_obj <- prepare_for_cleaning(self$data,
+                                               self$metadata,
+                                               self$feature_definitions,
+                                               n_subset = n_subset)
+
+      invisible(self)
+    },
+    assess_peaks = function(perc_test){
+      self$labels <- assess_peaks(self$prepare_obj,
+                                  self$feature_definitions,
+                                  perc_test = perc_test)
+
+      invisible(self)
+    },
+    get_models = function(model_list = c('LogisticRegression',
+                                         'NaiveBayes',
+                                         'RandomForest',
+                                         'SVM_Linear',
+                                         'AdaBoost',
+                                         'NeuralNetwork',
+                                         'ModelAveragedNeuralNet'),
+                          metric_list = c('M4', 'M7', 'M11')){
+      self$models <- get_models(self$prepare_obj,
+                                self$labels,
+                                model_list = model_list,
+                                metric_list = metric_list)
+
+      invisible(self)
+    },
+    evaluate_models = function(){
+      self$model_eval <- evaluate_models(self$models)
+
+      invisible(self)
+    },
+    train_final_model = function(selected_model){
+      self$final_mc_model <-train_final_model(self$models,
+                                              selected_model = selected_model)
+
+      invisible(self)
+    },
+    test_final_model = function(){
+      test_final_model(self$final_mc_model,
+                       self$prepare_obj,
+                       self$labels)
     }
   )
 )

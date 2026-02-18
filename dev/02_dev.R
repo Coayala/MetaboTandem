@@ -73,6 +73,10 @@ golem::add_fct('autotuner')
 golem::add_module(name = "metaclean", with_test = TRUE) # Name of the module
 golem::add_fct('metaclean')
 
+#### Databases
+golem::add_module(name = "databases", with_test = TRUE) # Name of the module
+golem::add_fct('databases')
+
 
 ## Add helper functions ----
 ## Creates fct_* and utils_*

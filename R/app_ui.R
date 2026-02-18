@@ -27,7 +27,7 @@ app_ui <- function(request) {
     # Database management
     div(id = 'database_app',
         style = 'display:none',
-        # database_appUI
+        mod_databases_ui("databases_1")
     ),
     # Main pipeline
     div(id = 'main_pipeline',
